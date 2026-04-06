@@ -1,0 +1,1 @@
+/Users/dovzipursky/Desktop/RustProjects/doomed-isa/target/debug/libdoomed_isa.rlib: /Users/dovzipursky/Desktop/RustProjects/doomed-isa/src/Memory.rs /Users/dovzipursky/Desktop/RustProjects/doomed-isa/src/instruction.rs /Users/dovzipursky/Desktop/RustProjects/doomed-isa/src/lib.rs
