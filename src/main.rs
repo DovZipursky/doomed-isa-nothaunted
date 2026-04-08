@@ -17,19 +17,20 @@ use std::io::{Write, Result};
 pub mod instruction;
 pub mod memory;
 pub mod pipeline;
+pub mod opcode;
 
 const TYPE_SHIFT: u32 = 31;
-const OPCODE_SHIFT: u32 = 26;
-const REG1_SHIFT: u32 = 21;
-const REG2_SHIFT: u32 = 16;
-const REG3_SHIFT: u32 = 11;
-const IMMEDIATE2_SHIFT: u32 = 5;
-const IMMEDIATE3_SHIFT: u32 = 0;
+const OPCODE_SHIFT: u32 = 25;
+const REG1_SHIFT: u32 = 20;
+const REG2_SHIFT: u32 = 15;
+const REG3_SHIFT: u32 = 10;
+const IMMEDIATE2_SHIFT: u32 = 9;
+const IMMEDIATE3_SHIFT: u32 = 3;
 
 const TYPE_MASK: u32 = 0b1;
-const OPCODE_MASK: u32 = 0b1_1111;
+const OPCODE_MASK: u32 = 0b11_1111;
 const REG_MASK: u32 = 0b1_1111;
-const IMMEDIATE_MASK: u32 = 0b1111_1111_1111_1111;
+const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
 
 fn main() {
 

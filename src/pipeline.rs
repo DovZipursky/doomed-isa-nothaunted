@@ -1,24 +1,25 @@
 pub mod pipeline {
-    use crate::{instruction::{self, instruction::Instruction, instruction::InstructionType, instruction::Devices}, memory::{self, memory::{Cache, Registers, ReturnVal}}};
+    use crate::{instruction::{self, instruction::{Devices, Instruction, InstructionType}}, memory::{self, memory::{Cache, Registers, ReturnVal}}, opcode::opcode::{ADD_RI, ADD_RR, CMP_RI, CMP_RR, JE_D, JE_I, JG_D, JG_I, JL_D, JL_I, JL_PC, JMP_D, JMP_I, JMP_PC, LDR_D, LDR_I, LDR_PC, STR_D, STR_I, STR_PC}};
     use std::cell::RefCell;
+    use crate::opcode;
 
     //constants that define the range of opcodes that refer to different instruction types
-    const ALU_RANGE: [i32; 2] = [1, 14];
-    const CONTROL_RANGE: [i32; 2] = [15, 19];
-    const MEMORY_RANGE: [i32; 2] = [20, 25];
+    const ALU_RANGE: [i32; 2] = [1, 25];
+    const CONTROL_RANGE: [i32; 2] = [26, 39];
+    const MEMORY_RANGE: [i32; 2] = [40, 57];
 
 const TYPE_SHIFT: u32 = 31;
-const OPCODE_SHIFT: u32 = 26;
-const REG1_SHIFT: u32 = 21;
-const REG2_SHIFT: u32 = 16;
-const REG3_SHIFT: u32 = 11;
-const IMMEDIATE2_SHIFT: u32 = 5;
-const IMMEDIATE3_SHIFT: u32 = 0;
+const OPCODE_SHIFT: u32 = 25;
+const REG1_SHIFT: u32 = 20;
+const REG2_SHIFT: u32 = 15;
+const REG3_SHIFT: u32 = 10;
+const IMMEDIATE2_SHIFT: u32 = 9;
+const IMMEDIATE3_SHIFT: u32 = 3;
 
 const TYPE_MASK: u32 = 0b1;
-const OPCODE_MASK: u32 = 0b1_1111;
+const OPCODE_MASK: u32 = 0b11_1111;
 const REG_MASK: u32 = 0b1_1111;
-const IMMEDIATE_MASK: u32 = 0b1111_1111_1111_1111;
+const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
 
     pub struct Fetch {
         load_instruction: Option<Instruction>,
@@ -60,11 +61,11 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111_1111;
                 //if there is a result and it is not a control flow instruction
                 if instr.result.is_some() && instr.instr_type == InstructionType::Memory {
                     //assume arg2 is a destination if LDR
-                    if instr.opcode == 20 {
+                    if instr.opcode == LDR_D as i32 || instr.opcode == LDR_I as i32 || instr.opcode == LDR_PC as i32 { 
                         reg.update_gp(instr.arg2 as usize, instr.result.unwrap());
                         reg.update_pending(instr.arg2 as usize, false); 
                     }
-                    else if instr.opcode == 21 {
+                    else if instr.opcode == STR_D as i32 || instr.opcode == STR_I as i32 || instr.opcode == STR_PC as i32 {
                         //with STR registers are not written to, but update src as not pending
                         reg.update_pending(instr.arg1 as usize, false);
                     }
@@ -82,11 +83,11 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111_1111;
 
                 else if instr.instr_type == InstructionType::Control { //if it is a control flow instruction
                     //assume result is the update to PC
-                    if instr.opcode == 15 { //JMP
+                    if instr.opcode == JMP_D as i32  || instr.opcode == JMP_I as i32 || instr.opcode == JMP_PC as i32 { //JMP
                         reg.update_gp(32, instr.result.unwrap());
                         wb_status = InstructionType::Squashed;
                     }
-                    else if instr.opcode == 18 { //JL
+                    else if instr.opcode == JL_D as i32 || instr.opcode == JL_I as i32 || instr.opcode == JL_PC as i32 { //JL
                         wb_status = InstructionType::Squashed;
                         reg.update_gp(32, instr.result.unwrap());
                         
@@ -245,16 +246,16 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111_1111;
             }
             if let Some(instr) = self.instruction.as_mut() {
                 if instr.instr_type == InstructionType::ALU {
-                    if instr.opcode == 1 { //if ADD, use values provided by decode
+                    if instr.opcode == ADD_RI as i32 || instr.opcode == ADD_RR as i32 { //if ADD, use values provided by decode
                         instr.result.replace( instr.arg1 +  instr.arg2);
                         
                     }
                 }
                 else if  instr.instr_type == InstructionType::Control {
-                    if  instr.opcode == 15 { //JMP
+                    if  instr.opcode == JMP_D as i32 || instr.opcode == JMP_I as i32 || instr.opcode == JMP_PC as i32 { //JMP
                         instr.result.replace( instr.arg1 + instr.arg2); //src + offset
                     }
-                    else if instr.opcode == 18 {//JL
+                    else if instr.opcode == JL_D as i32 || instr.opcode == JL_I as i32 || instr.opcode == JL_PC as i32 {//JL
                         if reg.get_flags() == -1 {
                             instr.result.replace(instr.arg1 + instr.arg2);
                         }
@@ -263,7 +264,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111_1111;
                         }
 
                     }
-                    else if  instr.opcode == 16 { //CMP
+                    else if  instr.opcode == CMP_RI as i32 || instr.opcode == CMP_RR as i32 { //CMP
                         if  instr.arg1 >  instr.arg2 {
                             reg.update_flags(1);
                         }
@@ -282,10 +283,10 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111_1111;
 
                 else if  instr.instr_type == InstructionType::Memory {
                     //calculate address, if LDR arg1 = arg1 + arg3, if str arg2 = arg2 + arg3
-                    if  instr.opcode == 20 { //if LDR
+                    if  instr.opcode == LDR_D as i32 || instr.opcode == LDR_I as i32 || instr.opcode == LDR_PC as i32 { //if LDR
                        instr.arg1 =  instr.arg1 + instr.arg3;
                     }
-                    else if instr.opcode == 21 {
+                    else if instr.opcode == STR_D as i32 || instr.opcode == STR_I as i32 || instr.opcode == STR_PC as i32 {
                         instr.arg2 =  instr.arg2 +  instr.arg3; 
                     }
                     else {
@@ -393,10 +394,13 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111_1111;
                 let instr_type: InstructionType;
                 let result: Option<i32> = None; 
                 let instruction: Instruction;
+                
+                //TODO
+                //add check for opcode 0 == HALT here and logic for that. 
 
                 if opcode >= ALU_RANGE[0] as u32 && opcode <= ALU_RANGE[1] as u32 { //ALU section
                     instr_type = InstructionType::ALU;
-                    if type_field == 0 { //assume reg + immediate to dst arg3
+                    if opcode == ADD_RI { //assume reg + immediate to dst arg3
                         arg1 = (((instr_binary as u32) >> REG1_SHIFT) & REG_MASK) as i32;
                         arg2 = (((instr_binary as u32) >> IMMEDIATE2_SHIFT) & IMMEDIATE_MASK) as i32;
                         arg3 = ((instr_binary as u32) & REG_MASK) as i32; //no shift since whole structure is taken up
@@ -424,7 +428,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111_1111;
 
                     }
 
-                    else { //register + register 
+                    else if opcode == ADD_RR { //register + register 
                         arg1 = (((instr_binary as u32) >> REG1_SHIFT) & REG_MASK) as i32;
                         arg2 = (((instr_binary as u32) >> REG2_SHIFT) & REG_MASK) as i32;
                         arg3 = (((instr_binary as u32) >> REG3_SHIFT) & REG_MASK) as i32;
@@ -456,7 +460,10 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111_1111;
                 else if opcode >= CONTROL_RANGE[0] as u32 && opcode <= CONTROL_RANGE[1] as u32 {
                     instr_type = InstructionType::Control;
 
-                    if opcode == 15 || opcode == 17 || opcode == 18 || opcode == 19{  //JMP, JE, JL, JG 
+                    if opcode == JMP_D || opcode == JMP_I  
+                    || opcode == JL_D || opcode == JL_I 
+                    || opcode == JE_D || opcode == JE_I 
+                    || opcode == JG_D || opcode == JG_I  {  //JMP, JE, JL, JG 
                         //assume arg1 register src, arg2 register offset
                         arg1 = (((instr_binary as u32) >> REG1_SHIFT) & REG_MASK) as i32;
                         arg2 = (((instr_binary as u32) >> REG2_SHIFT) & REG_MASK) as i32;
@@ -484,8 +491,8 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111_1111;
 
 
                     }
-                    else if opcode == 16 { //CMP
-                        if type_field == 0 { //assume reg cmp imm
+                    else if opcode == CMP_RI { //CMP
+                       
                         arg1 = (((instr_binary as u32) >> REG1_SHIFT) & REG_MASK) as i32;
                         arg2 = (((instr_binary as u32) >> IMMEDIATE2_SHIFT) & IMMEDIATE_MASK) as i32;
 
@@ -513,7 +520,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111_1111;
 
                     }
 
-                    else { //register cmp register 
+                    else if opcode == CMP_RR { //register cmp register 
                         arg1 = (((instr_binary as u32) >> REG1_SHIFT) & REG_MASK) as i32;
                         arg2 = (((instr_binary as u32) >> REG2_SHIFT) & REG_MASK) as i32;
                         arg3 = 0;
@@ -541,16 +548,14 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111_1111;
 
                     }
 
-                    }
-
-
+                    
 
                 }
 
                 else if opcode >= MEMORY_RANGE[0] as u32 && opcode <= MEMORY_RANGE[1] as u32 {
                     instr_type = InstructionType::Memory;
 
-                    //assume arg1 src and arg2 dst registers with a 16 bit offset arg3
+                    //assume arg1 src and arg2 dst registers with an immediate offset (12 bits) arg3
                     arg1 = (((instr_binary as u32) >> REG1_SHIFT) & REG_MASK) as i32;
                     arg2 = (((instr_binary as u32) >> REG2_SHIFT) & REG_MASK) as i32;
                     arg3 = ((instr_binary as u32) & IMMEDIATE_MASK) as i32;
@@ -607,7 +612,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111_1111;
 
             if let Some(mut instr) = self.dec_instruction.take() && exec_status != InstructionType::Blocked {
                 if instr.instr_type == InstructionType::ALU {
-                    if instr.type_field == 1 {
+                    if instr.opcode == ADD_RR as i32 {
                         if  !reg.is_pending(instr.arg1 as usize) && !reg.is_pending(instr.arg2 as usize) {
                             instr.arg1 = reg.get_gp(instr.arg1 as usize);
                             instr.arg2 = reg.get_gp(instr.arg2 as usize);
@@ -630,7 +635,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111_1111;
                             });
                         }
                     }
-                    else {
+                    else if instr.opcode == ADD_RI as i32 {
                         if  !reg.is_pending(instr.arg1 as usize)  { //arg2 is immediate
                             instr.arg1 = reg.get_gp(instr.arg1 as usize);
                             reg.update_pending(instr.arg3 as usize, true);
@@ -652,11 +657,29 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111_1111;
                                     pc: -1
                             });
                         }
+                        
                     }
+                    else {
+                            self.dec_instruction = Some(instr);
+                            return Some(Instruction {
+                                    instr_type: InstructionType::Stall,
+                                    device: Devices::Decode,
+                                    type_field: -1,
+                                    opcode: -1,
+                                    arg1: -1,
+                                    arg2: -1,
+                                    arg3: -1,
+                                    result: None,
+                                    pc: -1
+                            });
+                        }
                     
                 }
                 else if instr.instr_type == InstructionType::Control {
-                    if instr.opcode == 15 || instr.opcode == 17 || instr.opcode == 18 || instr.opcode == 19 {
+                    if instr.opcode == JMP_D as i32|| instr.opcode == JMP_I as i32 
+                    || instr.opcode == JL_D as i32 || instr.opcode == JL_I as i32
+                    || instr.opcode == JE_D as i32 || instr.opcode == JE_I as i32
+                    || instr.opcode == JG_D as i32 || instr.opcode == JG_I as i32 {
                         if !reg.is_pending(instr.arg1 as usize) && !reg.is_pending(instr.arg2 as usize) {
                                 instr.arg1 = reg.get_gp(instr.arg1 as usize);
                                 if instr.type_field == 1 {
@@ -683,31 +706,32 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111_1111;
                             });
                         }
                     }
-                    else if instr.opcode == 16 { //if CMP
-                            if instr.type_field == 0 { // register cmp immediate
-                                if !reg.is_pending(instr.arg1 as usize) {
-                                    instr.arg1 = reg.get_gp(instr.arg1 as usize);
-                                    self.dec_instruction = None;
-                                    self.instruction = None;
-                                    return Some(instr);
-                                }
-                                else {
-                                    self.dec_instruction = Some(instr);
-                                    return Some(Instruction {
-                                        instr_type: InstructionType::Stall,
-                                        device: Devices::Decode,
-                                        type_field: -1,
-                                        opcode: -1,
-                                        arg1: -1,
-                                        arg2: -1,
-                                        arg3: -1,
-                                        result: None,
-                                        pc: -1
-                                    });
-                                }
-
+                    else if instr.opcode == CMP_RI as i32 { //if CMP
+                            // register cmp immediate
+                            if !reg.is_pending(instr.arg1 as usize) {
+                                instr.arg1 = reg.get_gp(instr.arg1 as usize);
+                                self.dec_instruction = None;
+                                self.instruction = None;
+                                return Some(instr);
                             }
-                            else { //register cmp register
+                            else {
+                                self.dec_instruction = Some(instr);
+                                return Some(Instruction {
+                                    instr_type: InstructionType::Stall,
+                                    device: Devices::Decode,
+                                    type_field: -1,
+                                    opcode: -1,
+                                    arg1: -1,
+                                    arg2: -1,
+                                    arg3: -1,
+                                    result: None,
+                                    pc: -1
+                                });
+                            } 
+
+                            
+                        }
+                         else if instr.opcode == CMP_RR as i32 { //register cmp register
                                 if !reg.is_pending(instr.arg1 as usize) && reg.is_pending(instr.arg2 as usize) {
                                     instr.arg1 = reg.get_gp(instr.arg1 as usize);
                                     instr.arg2 = reg.get_gp(instr.arg2 as usize);
@@ -730,7 +754,6 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111_1111;
                                 }
 
                             }
-                        }
                     else {
                         self.instruction = None;
                         return Some(instr);
@@ -740,20 +763,34 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111_1111;
 
                 else if instr.instr_type == InstructionType::Memory {
                     if !reg.is_pending(instr.arg1 as usize) {
-                        if instr.opcode == 20 { //if LDR
+                        if instr.opcode == LDR_D  as i32 || instr.opcode == LDR_I as i32 { //if LDR
                             reg.update_pending(instr.arg2 as usize, true); //set dst addr to pending so it isn't overwritten
                             instr.arg1 = reg.get_gp(instr.arg1 as usize); //get addr from src reg
                             self.instruction = None;
                             self.dec_instruction = None;
                             return Some(instr);
                         }
-                        else { //assume STR else for now
+                        else if instr.opcode == STR_D as i32 || instr.opcode == STR_I as i32 { //assume STR else for now
                             //no write, so no update pending
                             instr.arg2 = reg.get_gp(instr.arg2 as usize); //get dst address
                             self.instruction = None;
                             self.dec_instruction = None;
                             return Some(instr);
                         }
+                        else {
+                        self.dec_instruction = Some(instr);
+                        return Some(Instruction {
+                                instr_type: InstructionType::Stall,
+                                device: Devices::Decode,
+                                type_field: -1,
+                                opcode: -1,
+                                arg1: -1,
+                                arg2: -1,
+                                arg3: -1,
+                                result: None,
+                                pc: -1
+                        });
+                    }
                             
                     }
                     else {
@@ -842,7 +879,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111_1111;
                 instr_type: InstructionType::Memory, 
                 device: Devices::Fetch, 
                 type_field: 0, //register direct
-                opcode: 20, //LDR 
+                opcode: LDR_D as i32, //LDR 
                 arg1: self.cur_pc, //PC register 
                 arg2: 0, //don't matter 
                 arg3: 0, //no offset
