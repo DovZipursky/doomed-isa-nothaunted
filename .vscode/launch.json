@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug main.rs",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/target/debug/doomed-isa",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "sourceLanguages": ["rust"]
+    }
+  ]
+}

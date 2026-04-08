@@ -92,7 +92,7 @@ pub fn test_control_flow() {
     let i7 = instr_fields_to_decimal(0,18,4,0,0,InstructionType::Control);
     let i8 = instr_fields_to_decimal(0,35,12,12,12,InstructionType::NOOP);
 
-    create_binary_file("src/programs/fetch-test.bin", &[i1,i2,i3,i4,i5,i6,i7,1,2,3]);
+    create_binary_file("src/programs/fetch-test.bin", &[i1,i2,i3,i4,i5,i6,i7,i8,2,3]);
     let mut reg = Registers::new();
     reg.update_gp(0 as usize, 0);
     reg.update_gp(1 as usize, 0);
