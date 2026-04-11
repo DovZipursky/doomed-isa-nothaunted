@@ -1,7 +1,7 @@
 pub mod pipeline {
     use crate::{instruction::{self, instruction::{Devices, Instruction, InstructionType}}, memory::{self, memory::{Cache, Registers, ReturnVal}}, opcode::opcode::{ADD_RI, ADD_RR, CMP_RI, CMP_RR, JE_D, JE_I, JG_D, JG_I, JL_D, JL_I, JL_PC, JMP_D, JMP_I, JMP_PC, LDR_D, LDR_I, LDR_PC, STR_D, STR_I, STR_PC}};
     use std::cell::RefCell;
-    use crate::opcode;
+    use crate::opcode::opcode;
 
     //constants that define the range of opcodes that refer to different instruction types
     const ALU_RANGE: [i32; 2] = [1, 25];
@@ -13,7 +13,8 @@ const OPCODE_SHIFT: u32 = 25;
 const REG1_SHIFT: u32 = 20;
 const REG2_SHIFT: u32 = 15;
 const REG3_SHIFT: u32 = 10;
-const IMMEDIATE2_SHIFT: u32 = 9;
+const IMMEDIATE2_SHIFT: u32 = 8;
+const POST_REG_SHIFT: u32 = 3;
 const IMMEDIATE3_SHIFT: u32 = 3;
 
 const TYPE_MASK: u32 = 0b1;
@@ -403,7 +404,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                     if opcode == ADD_RI { //assume reg + immediate to dst arg3
                         arg1 = (((instr_binary as u32) >> REG1_SHIFT) & REG_MASK) as i32;
                         arg2 = (((instr_binary as u32) >> IMMEDIATE2_SHIFT) & IMMEDIATE_MASK) as i32;
-                        arg3 = ((instr_binary as u32) & REG_MASK) as i32; //no shift since whole structure is taken up
+                        arg3 = (((instr_binary as u32) >> POST_REG_SHIFT) & REG_MASK) as i32; //no shift since whole structure is taken up
 
                         if !reg.is_pending(arg1 as usize) {
                             instruction = Instruction {
@@ -558,7 +559,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                     //assume arg1 src and arg2 dst registers with an immediate offset (12 bits) arg3
                     arg1 = (((instr_binary as u32) >> REG1_SHIFT) & REG_MASK) as i32;
                     arg2 = (((instr_binary as u32) >> REG2_SHIFT) & REG_MASK) as i32;
-                    arg3 = ((instr_binary as u32) & IMMEDIATE_MASK) as i32;
+                    arg3 = ((instr_binary as u32 >> IMMEDIATE3_SHIFT) & IMMEDIATE_MASK) as i32;
 
                     if !reg.is_pending(arg1 as usize) {
                         instruction = Instruction {
@@ -772,6 +773,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                         }
                         else if instr.opcode == STR_D as i32 || instr.opcode == STR_I as i32 { //assume STR else for now
                             //no write, so no update pending
+                            instr.arg1 = reg.get_gp(instr.arg1 as usize); //put register data in instruction
                             instr.arg2 = reg.get_gp(instr.arg2 as usize); //get dst address
                             self.instruction = None;
                             self.dec_instruction = None;

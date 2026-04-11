@@ -5,7 +5,13 @@
 
 use std::{collections::btree_map::Range, io, ptr::null};
 
-use crate::{instruction::instruction::{Devices, Instruction, InstructionType}, memory::memory::{Cache, Registers, ReturnVal}};
+
+
+use doomed_isa::opcode::opcode::RS_RR;
+
+use crate::{instruction::instruction::{Devices, Instruction, InstructionType}, 
+memory::memory::{Cache, Registers, ReturnVal}, 
+opcode::opcode::{ADD_RI, AND_RI, CMP_RI, CMP_RR, DIV_RI, JL_D, LDR_D, LS_RI, LSL_RI, LSR_RI, MOD_RI, MUL_RI, OR_RI, RS_RI, STR_D, SUB_RI, XOR_RI}};
 use crate::{pipeline::pipeline::{Decode, Memory, Fetch, Execute, Writeback}};
 
 use std::cell::RefCell;
@@ -24,7 +30,8 @@ const OPCODE_SHIFT: u32 = 25;
 const REG1_SHIFT: u32 = 20;
 const REG2_SHIFT: u32 = 15;
 const REG3_SHIFT: u32 = 10;
-const IMMEDIATE2_SHIFT: u32 = 9;
+const IMMEDIATE2_SHIFT: u32 = 8;
+const POST_REG_SHIFT: u32 = 3;
 const IMMEDIATE3_SHIFT: u32 = 3;
 
 const TYPE_MASK: u32 = 0b1;
@@ -34,19 +41,19 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
 
 fn main() {
 
-    let type_field:u32 = 1;
-    let opcode = 21;
-    let reg1 = 5;
-    let reg2 = 16;
-    let reg3 = 1;
-    let imm2: u32 = 64;
-    let imm3: u32 = 21;
+    let type_field:u32 = 0;
+    let opcode = ADD_RI;
+    let reg1 = 3;
+    let reg2 = 0;
+    let reg3 = 3;
+    let imm2: u32 = 1;
+    let imm3: u32 = 0;
 
      let instr_binary = (type_field << TYPE_SHIFT)
                 | (opcode << OPCODE_SHIFT)
                 | (reg1 << REG1_SHIFT)
                 | (imm2 << IMMEDIATE2_SHIFT)
-                | (reg3 << REG3_SHIFT);
+                | (reg3 << POST_REG_SHIFT);
 
     println!("{}", instr_binary.to_string());
 
@@ -54,7 +61,7 @@ fn main() {
     let opcode     = ((instr_binary >> OPCODE_SHIFT) & OPCODE_MASK) as u8;
     let reg1       = ((instr_binary >> REG1_SHIFT) & REG_MASK) as u8;
     let imm2       = ((instr_binary >> IMMEDIATE2_SHIFT) & IMMEDIATE_MASK) as u8;
-    let reg3       = ((instr_binary >> REG3_SHIFT) & REG_MASK) as u8;
+    let reg3       = ((instr_binary >> POST_REG_SHIFT) & REG_MASK) as u8;
 
     println!("{}, {}, {}, {}, {}", type_field, opcode, reg1, imm2, reg3);
 
@@ -84,21 +91,21 @@ pub fn test_control_flow() {
     //i6  CMP R0, 4
     //i7  JL  to addr 0
     //i8 done, no halt implemented yet
-    let i1 = instr_fields_to_decimal(0, 20, 3, 1, 0, InstructionType::Memory);
-    let i2 = instr_fields_to_decimal(0, 1, 0, 1, 2, InstructionType::ALU);
-    let i3 = instr_fields_to_decimal(0, 21, 2, 3, 0, InstructionType::Memory);
-    let i4 = instr_fields_to_decimal(0, 1, 3, 1, 3, InstructionType::ALU);
-    let i5 = instr_fields_to_decimal(0, 1, 0, 1, 0, InstructionType::ALU);
-    let i6 = instr_fields_to_decimal(0,16,0,4,0,InstructionType::Control);
-    let i7 = instr_fields_to_decimal(0,18,4,0,0,InstructionType::Control);
-    let i8 = instr_fields_to_decimal(0,35,12,12,12,InstructionType::NOOP);
+    let i1 = instr_fields_to_decimal(0, LDR_D, 3, 1, 0, InstructionType::Memory);
+    let i2 = instr_fields_to_decimal(0, ADD_RI, 0, 1, 2, InstructionType::ALU);
+    let i3 = instr_fields_to_decimal(0, STR_D, 2, 3, 0, InstructionType::Memory);
+    let i4 = instr_fields_to_decimal(0, ADD_RI, 3, 1, 3, InstructionType::ALU);
+    let i5 = instr_fields_to_decimal(0, ADD_RI, 0, 1, 0, InstructionType::ALU);
+    let i6 = instr_fields_to_decimal(0,CMP_RI,0,4,0,InstructionType::Control);
+    let i7 = instr_fields_to_decimal(0,JL_D, 4,0,0,InstructionType::Control);
+    let i8 = instr_fields_to_decimal(0,65,12,12,12,InstructionType::NOOP);
 
-    create_binary_file("src/programs/fetch-test.bin", &[i1,i2,i3,i4,i5,i6,i7,i8,2,3]);
+    create_binary_file("src/programs/fetch-test.bin", &[i1, i2, i3, i4,i5, i6, i7, i8, 1, 2,3]);
     let mut reg = Registers::new();
     reg.update_gp(0 as usize, 0);
     reg.update_gp(1 as usize, 0);
     reg.update_gp(2 as usize, 0);
-    reg.update_gp(3 as usize, 7);
+    reg.update_gp(3 as usize, 8);
     reg.update_gp(4 as usize,0);
     let mut cache = Cache::new([[-1; 4]; 4], [-1; 64]);
     cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
@@ -140,12 +147,14 @@ pub fn test_control_flow() {
 
 pub fn instr_fields_to_decimal(type_field: u32, opcode: u32, arg1: u32, arg2: u32, arg3: u32, instr_type: InstructionType) -> u32{
     if instr_type == InstructionType::ALU {
-        if type_field == 0 {
+        if opcode == ADD_RI  || opcode == SUB_RI || opcode == MUL_RI || opcode == DIV_RI || opcode == AND_RI
+        || opcode == OR_RI || opcode == XOR_RI || opcode == MOD_RI || opcode == XOR_RI || opcode == LSL_RI
+        || opcode == LSR_RI || opcode == LS_RI || opcode == RS_RI {
             return (type_field << TYPE_SHIFT)
                 | (opcode << OPCODE_SHIFT)
                 | (arg1 << REG1_SHIFT)
                 | (arg2 << IMMEDIATE2_SHIFT)
-                | (arg3);
+                | (arg3 << POST_REG_SHIFT);
         }
 
         else {
@@ -155,24 +164,24 @@ pub fn instr_fields_to_decimal(type_field: u32, opcode: u32, arg1: u32, arg2: u3
                 | (arg2 << REG2_SHIFT)
                 | (arg3 << REG3_SHIFT);
         }
+        
     }
     else if instr_type == InstructionType::Control {
-        if opcode == 16 { //if CMP specifically
-            if type_field == 0 {
+        if opcode == CMP_RI  { //if CMP specifically
+            
                 return (type_field << TYPE_SHIFT)
                 | (opcode << OPCODE_SHIFT)
                 | (arg1 << REG1_SHIFT)
                 | (arg2 << IMMEDIATE2_SHIFT)
                 | (arg3);
-            }
-            else {
+        }  
+        else if opcode == CMP_RR {
                 return (type_field << TYPE_SHIFT)
                 | (opcode << OPCODE_SHIFT)
                 | (arg1 << REG1_SHIFT)
                 | (arg2 << REG2_SHIFT)
                 | (arg3 << REG3_SHIFT);
             }
-        }
         else { //some jump
             return (type_field << TYPE_SHIFT)
                 | (opcode << OPCODE_SHIFT)
@@ -181,20 +190,21 @@ pub fn instr_fields_to_decimal(type_field: u32, opcode: u32, arg1: u32, arg2: u3
                 | (arg3 << REG3_SHIFT);
 
         }
-
-    }
-    else if instr_type == InstructionType::Memory {
+        }
+        else if instr_type == InstructionType::Memory {
         return (type_field << TYPE_SHIFT)
                 | (opcode << OPCODE_SHIFT)
                 | (arg1 << REG1_SHIFT)
                 | (arg2 << REG2_SHIFT)
                 | (arg3 << IMMEDIATE3_SHIFT);
 
+        }
+        else {
+            return 0;
+        }
+
     }
-    else {
-        return 0;
-    }
-}
+    
 
 pub fn test_memory() {
         let mut instr = Instruction {

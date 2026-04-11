@@ -2,6 +2,7 @@ pub mod memory {
     use std::{collections::LinkedList, fs};
 
     use crate::instruction::instruction::{Devices, Instruction};
+    use crate::opcode::opcode::{LDR_D, LDR_I, STR_D, STR_I};
 
     const CACHE_SIZE: i32 = 4;
     const MEMORY_SIZE: i32 = 64;
@@ -115,87 +116,87 @@ pub mod memory {
                 self.servicing = calling_device;
                 self.instruction = Some(instr);
 
-                if instr.opcode == 20  { //if LDR
+             
                     //expect arg1 to be an address 
 
-                    if instr.type_field == 0  { //if register direct
-                        //check hit/miss
-                        let index = instr.arg1 % CACHE_SIZE; //map address with offset to cache index
-                        let tag = instr.arg1 >> (32 - TAG_LENGTH);
+                if instr.opcode == LDR_D as i32 { //if register direct
+                    //check hit/miss
+                    let index = instr.arg1 % CACHE_SIZE; //map address with offset to cache index
+                    let tag = instr.arg1 >> (32 - TAG_LENGTH);
 
-                        if self.data[index as usize][1] == 1 && self.data[index as usize][0] == tag  { //both valid and proper tag
-                            self.delay = CACHE_DELAY;
-                            self.hit = true;
-                        }
-                        else { //else miss, 
-                            self.delay = MEMORY_DELAY;
-                            self.hit = false;
-                        }
-                        
+                    if self.data[index as usize][1] == 1 && self.data[index as usize][0] == tag  { //both valid and proper tag
+                        self.delay = CACHE_DELAY;
+                        self.hit = true;
                     }
-                    if instr.type_field == 1  { //if register indirect
-                        let main_addr = instr.arg1; //main memory address specified by register
-                        //check cache for that memory
-                        let mut index = main_addr % CACHE_SIZE;
-                        let mut tag = main_addr >> 32 - TAG_LENGTH;
-                        
-                        if self.data[index as usize][1] == 1 && self.data[index as usize][0] == tag  { //both valid and proper tag
-                            self.delay = CACHE_DELAY; //base delay is cache to get indirect address
-                        }
-                        else { //else miss, 
-                            self.delay = MEMORY_DELAY; //base delay is memory to get indirect address
-                        }
-
-                        let addr = self.main_memory[(main_addr % MEMORY_SIZE) as usize]; //find address in the memory cell specified by the register and add offset
-                        index = addr % CACHE_SIZE; //find mapped location
-                        tag = addr >> 32 - TAG_LENGTH;
-
-                        if self.data[index as usize][1] == 1 && self.data[index as usize][0] == tag  { //both valid and proper tag for actual requested data
-                            self.delay = self.delay + CACHE_DELAY; //add aditional cache delay for hit
-                            self.hit = true;
-                        }
-                        else { //else miss, 
-                            self.delay = self.delay + MEMORY_DELAY;  //add aditional memory delay for miss
-                            self.hit = false;
-                        }
-
+                    else { //else miss, 
+                        self.delay = MEMORY_DELAY;
+                        self.hit = false;
                     }
                     
                 }
+                else if instr.opcode == LDR_I as i32  { //if register indirect
+                    let main_addr = instr.arg1; //main memory address specified by register
+                    //check cache for that memory
+                    let mut index = main_addr % CACHE_SIZE;
+                    let mut tag = main_addr >> 32 - TAG_LENGTH;
+                    
+                    if self.data[index as usize][1] == 1 && self.data[index as usize][0] == tag  { //both valid and proper tag
+                        self.delay = CACHE_DELAY; //base delay is cache to get indirect address
+                    }
+                    else { //else miss, 
+                        self.delay = MEMORY_DELAY; //base delay is memory to get indirect address
+                    }
 
-                if instr.opcode == 21  { //if STR
+                    let addr = self.main_memory[(main_addr % MEMORY_SIZE) as usize]; //find address in the memory cell specified by the register and add offset
+                    index = addr % CACHE_SIZE; //find mapped location
+                    tag = addr >> 32 - TAG_LENGTH;
+
+                    if self.data[index as usize][1] == 1 && self.data[index as usize][0] == tag  { //both valid and proper tag for actual requested data
+                        self.delay = self.delay + CACHE_DELAY; //add aditional cache delay for hit
+                        self.hit = true;
+                    }
+                    else { //else miss, 
+                        self.delay = self.delay + MEMORY_DELAY;  //add aditional memory delay for miss
+                        self.hit = false;
+                    }
+
+                }
+                    
+                
+
+            
                     //expect arg2 to be an address
                     
-                    if instr.type_field == 0  { //if register direct
-                        let index =  instr.arg2 % CACHE_SIZE; //map address with offset to cache index
-                        let tag = instr.arg2 >> (32 - TAG_LENGTH);
-                        self.delay = MEMORY_DELAY; //due to write through
+                else if instr.opcode == STR_D as i32  { //if register direct
+                    let index =  instr.arg2 % CACHE_SIZE; //map address with offset to cache index
+                    let tag = instr.arg2 >> (32 - TAG_LENGTH);
+                    self.delay = MEMORY_DELAY; //due to write through
 
+                }
+
+                else if instr.opcode == STR_I as i32 { //if register indirect
+                    let main_addr = instr.arg2; //main memory address specified by instruction
+                    //check cache for that memory
+                    let index = main_addr % CACHE_SIZE;
+                    let tag = main_addr >> 32 - TAG_LENGTH;
+
+                    if self.data[index as usize][1] == 1 && self.data[index as usize][0] == tag  { //both valid and proper tag
+                        self.delay = CACHE_DELAY; //base delay is cache to get indirect address
+                    }
+                    else { //else miss, 
+                        self.delay = MEMORY_DELAY; //base delay is memory to get indirect address
                     }
 
-                    if instr.type_field == 1  { //if register indirect
-                        let main_addr = instr.arg2; //main memory address specified by instruction
-                        //check cache for that memory
-                        let index = main_addr % CACHE_SIZE;
-                        let tag = main_addr >> 32 - TAG_LENGTH;
+                    //let addr = self.main_memory[(main_addr / 4) % (MEMORY_SIZE * 4)][main_addr % 4] + instr.arg3; //find address in the memory cell specified by the register and add offset
+                    //index = addr % CACHE_SIZE; //find mapped location
+                    //tag = (addr << TAG_LENGTH) >> TAG_LENGTH;
 
-                        if self.data[index as usize][1] == 1 && self.data[index as usize][0] == tag  { //both valid and proper tag
-                            self.delay = CACHE_DELAY; //base delay is cache to get indirect address
-                        }
-                        else { //else miss, 
-                            self.delay = MEMORY_DELAY; //base delay is memory to get indirect address
-                        }
+                    self.delay = self.delay + MEMORY_DELAY; //to account for write through
+                    
 
-                        //let addr = self.main_memory[(main_addr / 4) % (MEMORY_SIZE * 4)][main_addr % 4] + instr.arg3; //find address in the memory cell specified by the register and add offset
-                        //index = addr % CACHE_SIZE; //find mapped location
-                        //tag = (addr << TAG_LENGTH) >> TAG_LENGTH;
+                }
 
-                        self.delay = self.delay + MEMORY_DELAY; //to account for write through
-                       
-
-                    }
-
-                } 
+                 
 
                 return ReturnVal::Wait(true) //return wait on first call 
             }
@@ -210,83 +211,60 @@ pub mod memory {
 
                 if self.counter == self.delay { //if counter reached delay this cycle
                     //if LDR, simply return data
-                    if instr.opcode == 20  {
-                        if self.hit  {
-                            if instr.type_field == 0   { //if register direct
-                                let index = instr.arg1  % CACHE_SIZE; //map address with offset to cache index
-                                //self.counter = 0;
-                                //self.servicing = Devices::Free;
-                                //return ReturnVal::Data(self.data[index as usize][3]) 
-                                return self.finish_instruction(index);
-                            }
-                            else { //if indirect
-                                let main_addr = instr.arg1; //get address from memory, delay already accounted for if any
-                                let addr = self.main_memory[(main_addr % MEMORY_SIZE) as usize]; 
-                                let index = addr % CACHE_SIZE; 
-                                //self.counter = 0;
-                                //self.servicing = Devices::Free;
-                                //return ReturnVal::Data(self.data[index as usize][3]) 
-                                return self.finish_instruction(index);
-
-                            }
-                        }
-                        else { //if miss, get from memory. Delay accounted for up front.
-                            if instr.type_field == 0   { //if register direct
-                                let data = self.main_memory[(instr.arg1 % MEMORY_SIZE) as usize]; //use address in register to index memory
-                                self.data[(instr.arg1 % CACHE_SIZE) as usize][3] = data; //put data in cache for later
-                                self.data[(instr.arg1 % CACHE_SIZE) as usize][0] = instr.arg1 >> (32 - TAG_LENGTH);
-                                self.data[(instr.arg1 % CACHE_SIZE) as usize][1] = 1;
-                                //self.counter = 0;
-                                //self.servicing = Devices::Free;
-                                //return ReturnVal::Data(data) 
-                                return self.finish_instruction(instr.arg1 % CACHE_SIZE);
-                            }
-                            else { //if indirect
-                                let main_addr = instr.arg1; //get from memory, delay already accounted for if any
-                                let addr = self.main_memory[(main_addr % MEMORY_SIZE) as usize]; 
-                                let data = self.main_memory[(main_addr % MEMORY_SIZE) as usize];
-
-                                self.data[(instr.arg1 % CACHE_SIZE) as usize][3] = data; //put data in cache for later
-                                self.data[(instr.arg1 % CACHE_SIZE) as usize][0] = instr.arg1 >> (32 - TAG_LENGTH);
-                                self.data[(instr.arg1 % CACHE_SIZE) as usize][1] = 1;
-                                
-                                //self.counter = 0;
-                                //self.servicing = Devices::Free;
-                                //return ReturnVal::Data(data) 
-                                return self.finish_instruction(instr.arg1 % CACHE_SIZE);
-
-                            }
-
-                        }
-                    }
-                    else if instr.opcode == 21  { // if STR
+                    
                         
-                        if instr.type_field == 1  { //if register indirect 
-                            let main_addr = instr.arg2;
-                            let addr = self.main_memory[(main_addr % MEMORY_SIZE) as usize]; //find address in the memory cell specified by the register and add offset
-                            let index = addr % CACHE_SIZE; //find mapped location
-
-                            
-                            //let mut wthrough_addr = index << CACHE_SIZE.ilog2(); //find real memory address of currently stored data by using index and tag
-                            //wthrough_addr = wthrough_addr | index;
-                            let tag = instr.arg2 >> (32 - TAG_LENGTH);
-                            if self.data[index as usize][0] != tag && self.data[index as usize][2] == 1 { //if evicting:
-                                self.main_memory[(addr % MEMORY_SIZE) as usize] = self.data[index as usize][3];
-                            }
-                            else {
-                                self.main_memory[(addr % MEMORY_SIZE) as usize] = instr.arg1; //write through to memory
-                            }
-                            self.data[index as usize][3] = instr.arg1; //store data in cache
-                            self.data[index as usize][0] = addr >> (32 - TAG_LENGTH); //set tag
-                            self.data[index as usize][1] = 1; //set valid bit
-
+                    if instr.opcode == LDR_D as i32  { //if register direct
+                        if self.hit {
+                                let index = instr.arg1  % CACHE_SIZE; //map address with offset to cache index
                             //self.counter = 0;
                             //self.servicing = Devices::Free;
-                            //return ReturnVal::Data(self.data[index as usize][3]); //just something that isn't wait
+                            //return ReturnVal::Data(self.data[index as usize][3]) 
                             return self.finish_instruction(index);
-
                         }
+                        else { //miss
+                            let data = self.main_memory[(instr.arg1 % MEMORY_SIZE) as usize]; //use address in register to index memory
+                            self.data[(instr.arg1 % CACHE_SIZE) as usize][3] = data; //put data in cache for later
+                            self.data[(instr.arg1 % CACHE_SIZE) as usize][0] = instr.arg1 >> (32 - TAG_LENGTH);
+                            self.data[(instr.arg1 % CACHE_SIZE) as usize][1] = 1;
+                            //self.counter = 0;
+                            //self.servicing = Devices::Free;
+                            //return ReturnVal::Data(data) 
+                            return self.finish_instruction(instr.arg1 % CACHE_SIZE);
+                        }
+                        
+                    }
+                    
+                    else if instr.opcode == LDR_I as i32  { //if indirect
+                        if self.hit {
+                            let main_addr = instr.arg1; //get address from memory, delay already accounted for if any
+                            let addr = self.main_memory[(main_addr % MEMORY_SIZE) as usize]; 
+                            let index = addr % CACHE_SIZE; 
+                            //self.counter = 0;
+                            //self.servicing = Devices::Free;
+                            //return ReturnVal::Data(self.data[index as usize][3]) 
+                            return self.finish_instruction(index);
+                        }
+                        
                         else {
+                            let main_addr = instr.arg1; //get from memory, delay already accounted for if any
+                            let addr = self.main_memory[(main_addr % MEMORY_SIZE) as usize]; 
+                            let data = self.main_memory[(main_addr % MEMORY_SIZE) as usize];
+
+                            self.data[(instr.arg1 % CACHE_SIZE) as usize][3] = data; //put data in cache for later
+                            self.data[(instr.arg1 % CACHE_SIZE) as usize][0] = instr.arg1 >> (32 - TAG_LENGTH);
+                            self.data[(instr.arg1 % CACHE_SIZE) as usize][1] = 1;
+                            
+                            //self.counter = 0;
+                            //self.servicing = Devices::Free;
+                            //return ReturnVal::Data(data) 
+                            return self.finish_instruction(instr.arg1 % CACHE_SIZE);
+                        }
+                        
+
+                    }
+
+                        
+                    else if instr.opcode == STR_D as i32 {
                             //if register direct
                             let addr = instr.arg2;
                             let index = addr % CACHE_SIZE;
@@ -312,9 +290,32 @@ pub mod memory {
                             //println!("Servicing reset: {:?}", self.servicing);
                             //return ReturnVal::Data(self.data[index as usize][3]); //just something that isn't wait
                             return self.finish_instruction(index);
-
-                        }
                     }
+                    else if instr.opcode == STR_I as i32 {
+                            let main_addr = instr.arg2;
+                            let addr = self.main_memory[(main_addr % MEMORY_SIZE) as usize]; //find address in the memory cell specified by the register and add offset
+                            let index = addr % CACHE_SIZE; //find mapped location
+
+                            
+                            //let mut wthrough_addr = index << CACHE_SIZE.ilog2(); //find real memory address of currently stored data by using index and tag
+                            //wthrough_addr = wthrough_addr | index;
+                            let tag = instr.arg2 >> (32 - TAG_LENGTH);
+                            if self.data[index as usize][0] != tag && self.data[index as usize][2] == 1 { //if evicting:
+                                self.main_memory[(addr % MEMORY_SIZE) as usize] = self.data[index as usize][3];
+                            }
+                            else {
+                                self.main_memory[(addr % MEMORY_SIZE) as usize] = instr.arg1; //write through to memory
+                            }
+                            self.data[index as usize][3] = instr.arg1; //store data in cache
+                            self.data[index as usize][0] = addr >> (32 - TAG_LENGTH); //set tag
+                            self.data[index as usize][1] = 1; //set valid bit
+
+                            //self.counter = 0;
+                            //self.servicing = Devices::Free;
+                            //return ReturnVal::Data(self.data[index as usize][3]); //just something that isn't wait
+                            return self.finish_instruction(index);
+                    }
+                        
 
                     return ReturnVal::Wait(true);
 
