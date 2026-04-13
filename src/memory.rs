@@ -75,8 +75,8 @@ pub mod memory {
     }
 
     pub struct Cache {
-        data: [[i32; 4]; CACHE_SIZE as usize],
-        main_memory: [i32; MEMORY_SIZE as usize],
+        data: [[i32; 7]; CACHE_SIZE as usize],
+        main_memory: [[i32; 4]; MEMORY_SIZE as usize],
         delay: i32,
         counter: i32,
         servicing: Devices,
@@ -85,13 +85,13 @@ pub mod memory {
     }
 
     impl Cache {
-        pub fn new(data: [[i32; 4]; CACHE_SIZE as usize], main_memory: [i32; MEMORY_SIZE as usize]) -> Self {
-            Cache {
+        pub fn new(data: [[i32; 7]; CACHE_SIZE as usize], main_memory: [[i32; 4]; MEMORY_SIZE as usize]) -> Self {
+            Cache { 
                 data: data, //address of element: data[addr % CACHE_SIZE][3]
                                             //data[index][0] = the tag, which is the remaining 23 bits of the address
                                             //data[index][1] = the valid bit, which indicates whether the cache line contains valid data or not
                                             //data[index][2] = dirty bit, whether the cache line has been written to and not evicted
-                                            //data[index][3] = the data in the line, one word of 32 bits
+                                            //data[index][3...6] = the data in the line, 4 words of 32 bits
                 main_memory: main_memory, //address of element: main_memory[addr/4 % MEMORY_SIZE * 4][addr % 4];
                 delay: CACHE_DELAY,
                 counter: 0,
@@ -111,18 +111,18 @@ pub mod memory {
             }
 
             //start new interaction if free
-            if self.servicing == Devices::Free {
-                
-                self.servicing = calling_device;
+            if self.servicing == Devices::Free { //Address of structure TAG | INDEX | OFFSET
+                                                    // for cache: tag = addr / (4 * CACHE_SIZE), index = (addr / 4) % CACHE_SIZE, offset = addr % CACHE_SIZE) 
+                self.servicing = calling_device;    // for memory: index = addr / 4, offset = addr % 4 
                 self.instruction = Some(instr);
 
-             
+                
                     //expect arg1 to be an address 
 
                 if instr.opcode == LDR_D as i32 { //if register direct
                     //check hit/miss
-                    let index = instr.arg1 % CACHE_SIZE; //map address with offset to cache index
-                    let tag = instr.arg1 >> (32 - TAG_LENGTH);
+                    let index = (instr.arg1 / 4) % CACHE_SIZE;
+                    let tag = instr.arg1 / (4 * CACHE_SIZE);
 
                     if self.data[index as usize][1] == 1 && self.data[index as usize][0] == tag  { //both valid and proper tag
                         self.delay = CACHE_DELAY;
@@ -137,19 +137,20 @@ pub mod memory {
                 else if instr.opcode == LDR_I as i32  { //if register indirect
                     let main_addr = instr.arg1; //main memory address specified by register
                     //check cache for that memory
-                    let mut index = main_addr % CACHE_SIZE;
-                    let mut tag = main_addr >> 32 - TAG_LENGTH;
+                    let mut index_i = (main_addr / 4) % CACHE_SIZE;
+                    let mut tag_i = main_addr / (4 * CACHE_SIZE);
                     
-                    if self.data[index as usize][1] == 1 && self.data[index as usize][0] == tag  { //both valid and proper tag
+                    if self.data[index_i as usize][1] == 1 && self.data[index_i as usize][0] == tag_i  { //both valid and proper tag
                         self.delay = CACHE_DELAY; //base delay is cache to get indirect address
                     }
                     else { //else miss, 
                         self.delay = MEMORY_DELAY; //base delay is memory to get indirect address
                     }
 
-                    let addr = self.main_memory[(main_addr % MEMORY_SIZE) as usize]; //find address in the memory cell specified by the register and add offset
-                    index = addr % CACHE_SIZE; //find mapped location
-                    tag = addr >> 32 - TAG_LENGTH;
+                    let addr = self.main_memory[(main_addr  / 4) as usize][(main_addr % 4) as usize]; //find address in the memory cell specified by the register and add offset
+                    
+                    let index = (addr / 4) % CACHE_SIZE; //find mapped location
+                    let tag = addr / (4 * CACHE_SIZE);
 
                     if self.data[index as usize][1] == 1 && self.data[index as usize][0] == tag  { //both valid and proper tag for actual requested data
                         self.delay = self.delay + CACHE_DELAY; //add aditional cache delay for hit
@@ -168,8 +169,8 @@ pub mod memory {
                     //expect arg2 to be an address
                     
                 else if instr.opcode == STR_D as i32  { //if register direct
-                    let index =  instr.arg2 % CACHE_SIZE; //map address with offset to cache index
-                    let tag = instr.arg2 >> (32 - TAG_LENGTH);
+                    //let index =  instr.arg2 % CACHE_SIZE; //map address with offset to cache index
+                    //let tag = instr.arg2 >> (32 - TAG_LENGTH);
                     self.delay = MEMORY_DELAY; //due to write through
 
                 }
@@ -177,10 +178,10 @@ pub mod memory {
                 else if instr.opcode == STR_I as i32 { //if register indirect
                     let main_addr = instr.arg2; //main memory address specified by instruction
                     //check cache for that memory
-                    let index = main_addr % CACHE_SIZE;
-                    let tag = main_addr >> 32 - TAG_LENGTH;
+                    let mut index_i = (main_addr / 4) % CACHE_SIZE;
+                    let mut tag_i = main_addr / (4 * CACHE_SIZE);
 
-                    if self.data[index as usize][1] == 1 && self.data[index as usize][0] == tag  { //both valid and proper tag
+                    if self.data[index_i as usize][1] == 1 && self.data[index_i as usize][0] == tag_i  { //both valid and proper tag
                         self.delay = CACHE_DELAY; //base delay is cache to get indirect address
                     }
                     else { //else miss, 
@@ -215,21 +216,24 @@ pub mod memory {
                         
                     if instr.opcode == LDR_D as i32  { //if register direct
                         if self.hit {
-                                let index = instr.arg1  % CACHE_SIZE; //map address with offset to cache index
+                                let index = (instr.arg1 / 4)  % CACHE_SIZE; //map address with offset to cache index
                             //self.counter = 0;
                             //self.servicing = Devices::Free;
                             //return ReturnVal::Data(self.data[index as usize][3]) 
-                            return self.finish_instruction(index);
+                            return self.finish_instruction(index, instr.arg1 % 4);
                         }
                         else { //miss
-                            let data = self.main_memory[(instr.arg1 % MEMORY_SIZE) as usize]; //use address in register to index memory
-                            self.data[(instr.arg1 % CACHE_SIZE) as usize][3] = data; //put data in cache for later
-                            self.data[(instr.arg1 % CACHE_SIZE) as usize][0] = instr.arg1 >> (32 - TAG_LENGTH);
-                            self.data[(instr.arg1 % CACHE_SIZE) as usize][1] = 1;
+                            let data = self.main_memory[(instr.arg1 / 4) as usize]; //use address in register to index memory
+                            self.data[((instr.arg1 / 4) % CACHE_SIZE) as usize][3] = data[0]; //put data in cache for later
+                            self.data[((instr.arg1 / 4) % CACHE_SIZE) as usize][4] = data[1];
+                            self.data[((instr.arg1 / 4) % CACHE_SIZE) as usize][5] = data[2];
+                            self.data[((instr.arg1 / 4) % CACHE_SIZE) as usize][6] = data[3];
+                            self.data[((instr.arg1 / 4) % CACHE_SIZE) as usize][0] = instr.arg1 / (CACHE_SIZE * 4);
+                            self.data[((instr.arg1 / 4) % CACHE_SIZE) as usize][1] = 1;
                             //self.counter = 0;
                             //self.servicing = Devices::Free;
                             //return ReturnVal::Data(data) 
-                            return self.finish_instruction(instr.arg1 % CACHE_SIZE);
+                            return self.finish_instruction((instr.arg1 / 4) % CACHE_SIZE, instr.arg1 % 4);
                         }
                         
                     }
@@ -237,83 +241,90 @@ pub mod memory {
                     else if instr.opcode == LDR_I as i32  { //if indirect
                         if self.hit {
                             let main_addr = instr.arg1; //get address from memory, delay already accounted for if any
-                            let addr = self.main_memory[(main_addr % MEMORY_SIZE) as usize]; 
-                            let index = addr % CACHE_SIZE; 
-                            //self.counter = 0;
-                            //self.servicing = Devices::Free;
-                            //return ReturnVal::Data(self.data[index as usize][3]) 
-                            return self.finish_instruction(index);
+                            let addr = self.main_memory[(main_addr / 4) as usize][(main_addr % 4) as usize]; 
+                            let index = (addr / 4) % CACHE_SIZE;
+                            let offset = addr % 4; 
+                         
+                            return self.finish_instruction(index, offset);
                         }
                         
                         else {
                             let main_addr = instr.arg1; //get from memory, delay already accounted for if any
-                            let addr = self.main_memory[(main_addr % MEMORY_SIZE) as usize]; 
-                            let data = self.main_memory[(main_addr % MEMORY_SIZE) as usize];
+                            let addr = self.main_memory[(main_addr / 4) as usize][(main_addr % 4) as usize]; 
+                            let data = self.main_memory[(addr / 4) as usize];
 
-                            self.data[(instr.arg1 % CACHE_SIZE) as usize][3] = data; //put data in cache for later
-                            self.data[(instr.arg1 % CACHE_SIZE) as usize][0] = instr.arg1 >> (32 - TAG_LENGTH);
-                            self.data[(instr.arg1 % CACHE_SIZE) as usize][1] = 1;
+                            self.data[((addr / 4) % CACHE_SIZE) as usize][3] = data[0]; //put data in cache for later
+                            self.data[((addr / 4) % CACHE_SIZE) as usize][4] = data[1];
+                            self.data[((addr / 4) % CACHE_SIZE) as usize][5] = data[2];
+                            self.data[((addr / 4) % CACHE_SIZE) as usize][6] = data[3];
+                            self.data[((addr / 4) % CACHE_SIZE) as usize][0] = addr/ (CACHE_SIZE * 4);
+                            self.data[((addr / 4) % CACHE_SIZE) as usize][1] = 1;
                             
                             //self.counter = 0;
                             //self.servicing = Devices::Free;
                             //return ReturnVal::Data(data) 
-                            return self.finish_instruction(instr.arg1 % CACHE_SIZE);
+                            return self.finish_instruction((addr / 4) % CACHE_SIZE, addr % 4);
                         }
                         
 
                     }
 
                         
-                    else if instr.opcode == STR_D as i32 {
+                    else if instr.opcode == STR_D as i32 { //assumes that memory and cache are synched
                             //if register direct
                             let addr = instr.arg2;
-                            let index = addr % CACHE_SIZE;
+                            let index = (addr / 4) % CACHE_SIZE;
 
                             //let mut wthrough_addr = index << CACHE_SIZE.ilog2(); //find real memory address of currently stored data by using index and tag
                             //wthrough_addr = wthrough_addr | index;
                            
-                            let tag = instr.arg2 >> (32 - TAG_LENGTH);
-                            if self.data[index as usize][0] != tag && self.data[index as usize][2] == 1 { //if evicting:
-                                self.main_memory[(addr % MEMORY_SIZE) as usize] = self.data[index as usize][3];
-                            }
-                            else {
-                                self.main_memory[(addr % MEMORY_SIZE) as usize] = instr.arg1; //write through to memory
-                            } //write through to memory
+                            let tag = addr / (CACHE_SIZE * 4);
                             
 
-                            self.data[index as usize][3] = instr.arg1; //store data in cache
-                            self.data[index as usize][0] = addr >> (32 - TAG_LENGTH); //set tag
+                            if self.data[index as usize][0] != tag && self.data[index as usize][1] == 1 { //line is occupied with different section of memory
+                                //full "eviction", so write over whole cache line before replacing the tag and relevant word
+                                //assume whatever memory the old cache info was reffering to is up to date due to write through
+                                //let e_addr = (self.data[index as usize][0] << INDEX_LENGTH) | index; if we were doing writeback this would be handy
+                                for i in 0..4 {
+                                    self.data[index as usize][(i + 3) as usize] = self.main_memory[(addr / 4) as usize][i as usize]; 
+                                }
+
+                            }
+                            
+                            self.main_memory[(addr / 4) as usize][(addr % 4) as usize] = instr.arg1; //write through
+                            self.data[index as usize][((addr % 4) + 3) as usize] = instr.arg1; //store data in cache
+                            self.data[index as usize][0] = tag; //set tag
                             self.data[index as usize][1] = 1; //set valid bit
 
-                            //self.counter = 0;
-                            //self.servicing = Devices::Free;
-                            //println!("Servicing reset: {:?}", self.servicing);
-                            //return ReturnVal::Data(self.data[index as usize][3]); //just something that isn't wait
-                            return self.finish_instruction(index);
+                           
+                            return self.finish_instruction(index, addr % 4);
                     }
+
                     else if instr.opcode == STR_I as i32 {
                             let main_addr = instr.arg2;
-                            let addr = self.main_memory[(main_addr % MEMORY_SIZE) as usize]; //find address in the memory cell specified by the register and add offset
-                            let index = addr % CACHE_SIZE; //find mapped location
+                            let addr = self.main_memory[(main_addr / 4) as usize][(main_addr % 4) as usize]; //find address in the memory cell specified by the register and add offset
+                            let index = (addr / 4) % CACHE_SIZE; //find mapped location
 
+                            let tag = addr / (CACHE_SIZE * 4);
                             
-                            //let mut wthrough_addr = index << CACHE_SIZE.ilog2(); //find real memory address of currently stored data by using index and tag
-                            //wthrough_addr = wthrough_addr | index;
-                            let tag = instr.arg2 >> (32 - TAG_LENGTH);
-                            if self.data[index as usize][0] != tag && self.data[index as usize][2] == 1 { //if evicting:
-                                self.main_memory[(addr % MEMORY_SIZE) as usize] = self.data[index as usize][3];
+                            
+                            if self.data[index as usize][0] != tag && self.data[index as usize][1] == 1 { //line is occupied with different section of memory
+                                //full "eviction", so write over whole cache line before replacing the tag and relevant word
+                                //assume whatever memory the old cache info was reffering to is up to date due to write through
+                                //let e_addr = (self.data[index as usize][0] << INDEX_LENGTH) | index;
+                                for i in 0..4 {
+                                    self.data[index as usize][(i + 3) as usize] = self.main_memory[(addr / 4) as usize][i as usize]; 
+                                }
+
                             }
-                            else {
-                                self.main_memory[(addr % MEMORY_SIZE) as usize] = instr.arg1; //write through to memory
-                            }
-                            self.data[index as usize][3] = instr.arg1; //store data in cache
-                            self.data[index as usize][0] = addr >> (32 - TAG_LENGTH); //set tag
+                            
+                            self.main_memory[(addr / 4) as usize][(addr % 4) as usize] = instr.arg1; //write through
+                            self.data[index as usize][((addr % 4) + 3) as usize] = instr.arg1; //store data in cache
+                            self.data[index as usize][0] = tag; //set tag
                             self.data[index as usize][1] = 1; //set valid bit
 
-                            //self.counter = 0;
-                            //self.servicing = Devices::Free;
-                            //return ReturnVal::Data(self.data[index as usize][3]); //just something that isn't wait
-                            return self.finish_instruction(index);
+                           
+                            return self.finish_instruction(index, addr % 4);
                     }
                         
 
@@ -337,19 +348,19 @@ pub mod memory {
             return;
         }
 
-        fn finish_instruction(&mut self, index: i32) -> ReturnVal {
+        fn finish_instruction(&mut self, index: i32, offset: i32) -> ReturnVal {
             self.counter = 0;
             self.servicing = Devices::Free;
                             
-            return ReturnVal::Data(self.data[index as usize][3]); //just something that isn't wait
+            return ReturnVal::Data(self.data[index as usize][(offset + 3) as usize]); //just something that isn't wait
         }
 
-        pub fn get_cache(&self, line: i32) -> i32 {
-            return self.data[(line % CACHE_SIZE) as usize][3];
+        pub fn get_cache(&self, line: i32) -> [i32; 7] {
+            return self.data[((line / 4) % CACHE_SIZE) as usize];
         }
 
-        pub fn get_memory(&self, addr: i32) -> i32 {
-            return self.main_memory[(addr % MEMORY_SIZE) as usize];
+        pub fn get_memory(&self, addr: i32) -> [i32; 4] {
+            return self.main_memory[(addr / 4) as usize];
         }
         
     
@@ -365,9 +376,17 @@ pub mod memory {
             }
 
             let mut i = 0;
+            let mut j = 0;
             for instr in instructions {
-                self.main_memory[(i % MEMORY_SIZE) as usize] = instr as i32;
-                i = i + 1;
+                
+                self.main_memory[(i / MEMORY_SIZE) as usize][j] = instr as i32;
+
+                if j == 3 {
+                    i = i + 1;
+                }
+
+                j = (j + 1) % 4;
+                
             }
             
             return;

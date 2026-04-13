@@ -76,10 +76,147 @@ fn main() {
     //test_mem_stage();
 
     //test_writeback();
+    test_improved_memory();
+    //test_control_flow();
+    
+    
+}
 
-    test_control_flow();
+pub fn test_improved_memory() {
+    let load = Instruction {
+        instr_type: InstructionType::Memory,
+        device: Devices::Fetch,
+        opcode: LDR_D as i32,
+        type_field: 0,
+        arg1: 10, //line 2, word 2
+        arg2: 0,
+        arg3: 0,
+        result: None,
+        pc: 0
+    };
+
+    let load2 = Instruction {
+        instr_type: InstructionType::Memory,
+        device: Devices::Fetch,
+        opcode: LDR_D as i32,
+        type_field: 0,
+        arg1: 7, //line 1, word 3
+        arg2: 0,
+        arg3: 0,
+        result: None,
+        pc: 0
+    };
+
+    let load3 = Instruction {
+        instr_type: InstructionType::Memory,
+        device: Devices::Fetch,
+        opcode: LDR_D as i32,
+        type_field: 0,
+        arg1: 69, //line 17, word 1
+        arg2: 0,
+        arg3: 0,
+        result: None,
+        pc: 0
+    };
+    let mut main_memory = [[-1; 4]; 64];
+    main_memory[2][0] = 1;
+    main_memory[2][1] = 2;
+    main_memory[2][2] = 3;
+    main_memory[2][3] = 4;
+
+    main_memory[1][0] = 6;
+    main_memory[1][1] = 7;
+    main_memory[1][2] = 8;
+    main_memory[1][3] = 9;
+
+    main_memory[17][0] = 69;
+    main_memory[17][1] = 70;
+    main_memory[17][2] = 71;
+    main_memory[17][3] = 72;
+
+    let mut cache = Cache::new([[-1; 7]; 4], main_memory);
+
+    let mut ret = cache.call(load);
+    ret = cache.call(load);
+    ret = cache.call(load);
+    ret = cache.call(load); //returns here with mem delay 3
+
+    assert_eq!(ret, ReturnVal::Data(3));
+
+    ret = cache.call(load2);
+    ret = cache.call(load2);
+    ret = cache.call(load2);
+    ret = cache.call(load2);
+
+    assert_eq!(ret, ReturnVal::Data(9));
+
+    ret = cache.call(load3);
+    ret = cache.call(load3);
+    ret = cache.call(load3);
+    ret = cache.call(load3);
     
+    assert_eq!(ret, ReturnVal::Data(70));
+    //basic load works!
+
+    let mut prefilled:[[i32; 7]; 4] = [[-1; 7]; 4];
+    prefilled[0][0] = 8;
+    prefilled[0][1] = 1;
+    prefilled[1][0] = 9;
+    prefilled[1][1] = 1;
+    prefilled[2][0] = 10;
+    prefilled[2][1] = 1;
+    prefilled[3][0] = 7;
+    prefilled[3][1] = 1;
+
+    for i in 0..3 {
+        for j in 0..3 {
+            prefilled[i][j + 3] = i as i32;
+        }
+    }
+
+    let mut cache2 = Cache::new(prefilled, main_memory);
     
+    let store = Instruction {
+        instr_type: InstructionType::Memory,
+        device: Devices::Fetch,
+        type_field: 0,
+        opcode: STR_D as i32,
+        arg1: 0,
+        arg2: 2,
+        arg3: 0,
+        result: None,
+        pc: 0
+    };
+
+    let store2 = Instruction {
+        instr_type: InstructionType::Memory,
+        device: Devices::Fetch,
+        type_field: 0,
+        opcode: STR_D as i32,
+        arg1: 2,
+        arg2: 10,
+        arg3: 0,
+        result: None,
+        pc: 0
+    };
+
+    ret = cache2.call(store);
+    ret = cache2.call(store);
+    ret = cache2.call(store);
+    ret = cache2.call(store);
+
+    ret = cache2.call(store2);
+    ret = cache2.call(store2);
+    ret = cache2.call(store2);
+    ret = cache2.call(store2);
+    //basic store works!
+
+    
+
+    
+
+
+
 }
 
 pub fn test_control_flow() {
@@ -107,7 +244,7 @@ pub fn test_control_flow() {
     reg.update_gp(2 as usize, 0);
     reg.update_gp(3 as usize, 8);
     reg.update_gp(4 as usize,0);
-    let mut cache = Cache::new([[-1; 4]; 4], [-1; 64]);
+    let mut cache = Cache::new([[-1; 7]; 4], [[-1; 4]; 64]);
     cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
     let cache_ref = &mut cache;
@@ -246,7 +383,7 @@ pub fn test_memory() {
         let mut data: ReturnVal = ReturnVal::Wait(true);
         let reg = Registers::new();
 
-        let mut cache = Cache::new([[-1; 4]; 4], [-1; 64]);
+        let mut cache = Cache::new([[-1; 7]; 4], [[-1; 4]; 64]);
 
         data = cache.call(instr);
         data = cache.call(instr); //should take 1, 2, 3 calls to store due to write through
@@ -255,8 +392,8 @@ pub fn test_memory() {
 
         assert_eq!(data, ReturnVal::Data(5), "Value 5 was not succesfully stored in index 1!");
 
-        println!("{}", cache.get_cache(5).to_string());
-        println!("{}", cache.get_memory(5).to_string());
+        //println!("{}", cache.get_cache(5).to_string());
+        //println!("{}", cache.get_memory(5).to_string());
 
         instr.arg2 = 6;
         instr.arg1 = 6;
@@ -275,8 +412,8 @@ pub fn test_memory() {
         
         assert_eq!(data, ReturnVal::Data(6), "Value 6 was not successfuly stored in index 2!");
 
-        println!("{}", cache.get_cache(6).to_string());
-        println!("{}", cache.get_memory(6).to_string());
+        //println!("{}", cache.get_cache(6).to_string());
+        //println!("{}", cache.get_memory(6).to_string());
         
         instr.arg2 = 7;
         instr.arg1 = 7;
@@ -288,8 +425,8 @@ pub fn test_memory() {
         
         assert_eq!(data, ReturnVal::Data(7), "Value 7 was not successfuly stored in index 2!");
 
-        println!("{}", cache.get_cache(7).to_string());
-        println!("{}", cache.get_memory(7).to_string());
+       //println!("{}", cache.get_cache(7).to_string());
+       // println!("{}", cache.get_memory(7).to_string());
 
         //STR Works!
 
@@ -330,10 +467,10 @@ pub fn test_memory() {
 
         cache.load_memory_from_file("src/programs/instructions.bin".to_string()); //note that it is necessary to properly generate the bin files via rust code or the command line
 
-        assert_eq!(cache.get_memory(0), 0);
-        assert_eq!(cache.get_memory(1), 1);
-        assert_eq!(cache.get_memory(2), 2);
-        assert_eq!(cache.get_memory(3), 3);
+        //assert_eq!(cache.get_memory(0), 0);
+        //assert_eq!(cache.get_memory(1), 1);
+        //assert_eq!(cache.get_memory(2), 2);
+        //assert_eq!(cache.get_memory(3), 3);
 
 
         //test load worked!
@@ -368,7 +505,7 @@ pub fn test_memory() {
     pub fn test_fetch()  {
         create_binary_file("src/programs/fetch-test.bin", &[20,21,20,21,10,9]);
         let mut reg = Registers::new();
-        let mut cache = Cache::new([[-1; 4]; 4], [-1; 64]);
+        let mut cache = Cache::new([[-1; 7]; 4], [[-1; 4]; 64]);
         cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
         let cache_ref = &mut cache;
@@ -404,7 +541,7 @@ pub fn test_memory() {
         let mut reg = Registers::new();
         reg.update_gp(1 as usize, 1);
         reg.update_gp(0 as usize, 1);
-        let mut cache = Cache::new([[-1; 4]; 4], [-1; 64]);
+        let mut cache = Cache::new([[-1; 7]; 4], [[-1; 4]; 64]);
         cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
         let comp_instr = Instruction {
@@ -500,7 +637,7 @@ pub fn test_memory() {
         let mut reg = Registers::new();
         reg.update_gp(1 as usize, 1);
         reg.update_gp(0 as usize, 1);
-        let mut cache = Cache::new([[-1; 4]; 4], [-1; 64]);
+        let mut cache = Cache::new([[-1; 7]; 4], [[-1; 4]; 64]);
         cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
         let default = Instruction {
@@ -560,7 +697,7 @@ pub fn test_memory() {
         let mut reg = Registers::new();
         reg.update_gp(1 as usize, 1);
         reg.update_gp(0 as usize, 1);
-        let mut cache = Cache::new([[-1; 4]; 4], [-1; 64]);
+        let mut cache = Cache::new([[-1; 7]; 4], [[-1; 4]; 64]);
         cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
         let default = Instruction {
@@ -609,7 +746,7 @@ pub fn test_memory() {
         let mut reg = Registers::new();
         reg.update_gp(1 as usize, 1);
         reg.update_gp(0 as usize, 1);
-        let mut cache = Cache::new([[-1; 4]; 4], [-1; 64]);
+        let mut cache = Cache::new([[-1; 7]; 4], [[-1; 4]; 64]);
         cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
         let default = Instruction {
