@@ -65,6 +65,11 @@ fn main() {
 
     println!("{}, {}, {}, {}, {}", type_field, opcode, reg1, imm2, reg3);
 
+    let index = 6 / 4;
+    let offset = 6 % 4;
+
+    println!("{}, {}", index, offset);
+
     //test_memory();
 
     //test_fetch();
@@ -76,8 +81,8 @@ fn main() {
     //test_mem_stage();
 
     //test_writeback();
-    test_improved_memory();
-    //test_control_flow();
+    //test_improved_memory();
+    test_control_flow();
     
     
 }
@@ -326,7 +331,7 @@ pub fn instr_fields_to_decimal(type_field: u32, opcode: u32, arg1: u32, arg2: u3
                 | (arg2 << REG2_SHIFT)
                 | (arg3 << REG3_SHIFT);
 
-        }
+            }
         }
         else if instr_type == InstructionType::Memory {
         return (type_field << TYPE_SHIFT)

@@ -84,7 +84,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
 
                 else if instr.instr_type == InstructionType::Control { //if it is a control flow instruction
                     //assume result is the update to PC
-                    if instr.opcode == JMP_D as i32  || instr.opcode == JMP_I as i32 || instr.opcode == JMP_PC as i32 { //JMP
+                    if instr.opcode == JMP_D as i32  || instr.opcode == JMP_I as i32 || instr.opcode == JMP_PC as i32  { //JMP
                         reg.update_gp(32, instr.result.unwrap());
                         wb_status = InstructionType::Squashed;
                     }
@@ -97,7 +97,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                    
                 }
             }
-
+            println!("Writeback status: {}", wb_status.to_string());
             let next_instr = self.mem_stage.call(reg, cache, wb_status);
 
             let ret_instr = self.instruction;
@@ -174,7 +174,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
             else {
                 mem_status = InstructionType::NotBlocked;
             }
-
+            println!("Memory status: {}", mem_status.to_string());
             let maybe_next_instr = self.exec_stage.call(mem_status, reg, cache);
 
             
@@ -300,7 +300,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
 
 
             }
-
+            println!("Execute status: {}", mem_status.to_string());
             let next = self.dec_stage.call(mem_status, reg, cache);
             let cur = self.instruction;
             if next.is_some() {
@@ -602,12 +602,15 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                 }
             }
 
+            println!("Decode status: {}", dec_status.to_string());
             let (fetch_return, new_instr, instr_pc) = self.fetch_stage.call(dec_status, reg, cache);
 
             if fetch_return == InstructionType::NotBlocked {
-                self.instruction.replace((new_instr, instr_pc));
+                println!("Decode recieved an instruction from fetch: {}", new_instr.to_string());
+                self.instruction = Some((new_instr, instr_pc));
             }
             else {
+                println!("Decode recieved a stall from fetch");
                     //might happen but fine
             }
 
@@ -618,7 +621,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                             instr.arg1 = reg.get_gp(instr.arg1 as usize);
                             instr.arg2 = reg.get_gp(instr.arg2 as usize);
                             reg.update_pending(instr.arg3 as usize, true);
-                            self.instruction = None;
+                            //self.instruction = None;
                             return Some(instr);
                         }
                         else {
@@ -641,7 +644,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                             instr.arg1 = reg.get_gp(instr.arg1 as usize);
                             reg.update_pending(instr.arg3 as usize, true);
                             let ret_instr = self.dec_instruction.take();
-                            self.instruction = None;
+                            //self.instruction = None;
                             return Some(instr);
                         }
                         else {
@@ -688,7 +691,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                                 }
 
                                 self.dec_instruction = None;
-                                self.instruction = None;
+                                //self.instruction = None;
                                 return Some(instr);
                         }
                         else {
@@ -712,7 +715,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                             if !reg.is_pending(instr.arg1 as usize) {
                                 instr.arg1 = reg.get_gp(instr.arg1 as usize);
                                 self.dec_instruction = None;
-                                self.instruction = None;
+                                //self.instruction = None;
                                 return Some(instr);
                             }
                             else {
@@ -736,7 +739,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                                 if !reg.is_pending(instr.arg1 as usize) && reg.is_pending(instr.arg2 as usize) {
                                     instr.arg1 = reg.get_gp(instr.arg1 as usize);
                                     instr.arg2 = reg.get_gp(instr.arg2 as usize);
-                                    self.instruction = None;
+                                    //self.instruction = None;
                                     return Some(instr);
                                 }
                                 else {
@@ -756,7 +759,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
 
                             }
                     else {
-                        self.instruction = None;
+                        //self.instruction = None;
                         return Some(instr);
                     }
 
@@ -767,7 +770,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                         if instr.opcode == LDR_D  as i32 || instr.opcode == LDR_I as i32 { //if LDR
                             reg.update_pending(instr.arg2 as usize, true); //set dst addr to pending so it isn't overwritten
                             instr.arg1 = reg.get_gp(instr.arg1 as usize); //get addr from src reg
-                            self.instruction = None;
+                            //self.instruction = None;
                             self.dec_instruction = None;
                             return Some(instr);
                         }
@@ -775,7 +778,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                             //no write, so no update pending
                             instr.arg1 = reg.get_gp(instr.arg1 as usize); //put register data in instruction
                             instr.arg2 = reg.get_gp(instr.arg2 as usize); //get dst address
-                            self.instruction = None;
+                            //self.instruction = None;
                             self.dec_instruction = None;
                             return Some(instr);
                         }
@@ -813,7 +816,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
 
                 else {
                     
-                    self.instruction = None;
+                    //self.instruction = None;
                     return Some(instr)
                 }
 
@@ -889,26 +892,32 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                 pc: self.cur_pc 
             }); //don't matter
             }
-            let next_instr;
-            if self.cur_instruction.is_none() { 
-                next_instr = cache.call(self.load_instruction.unwrap());  
-            }//try to get from memory
-
-            else { //if already have, just set again to do the next bit
-                next_instr = ReturnVal::Data(self.cur_instruction.unwrap_or(0));
-            }
             
-            match next_instr {
+            
+            if self.cur_instruction.is_none() { 
+                
+                let next_instr = cache.call(self.load_instruction.unwrap()); 
+                
+                match next_instr {
                
-                ReturnVal::Data(i) => { //NOOP is just a non-stall placeholder, Decode will ignore that
+                ReturnVal::Data(i) => { 
+                    println!("Fetch has gotten a new instruction from the cache");
                     self.cur_instruction = Some(i);
                 }
                 ReturnVal::Wait(y) => {
                     self.cur_instruction = None; //if no data, then stall
                 }
+            } 
+            }//try to get from memory
+
+            else { //if already have, just set again to do the next bit
+                println!("Fetch already has an instruction");
             }
+            
+            
 
             if decode_status != InstructionType::Blocked && self.cur_instruction.is_some() {
+                println!("Fetch has returned an instruction to decode: {}", self.cur_instruction.unwrap().to_string());
                 reg.inc_pc();
                 self.load_instruction = None;
                 let ret_val = self.cur_instruction.unwrap();
@@ -916,6 +925,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                 return (InstructionType::NotBlocked, ret_val, self.cur_pc);
             }
             else {
+                println!("Fetch is stalling because it has no instruction or decode is blocked");
                 return (InstructionType::Stall, -1, -1);
             }
 

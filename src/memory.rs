@@ -379,7 +379,7 @@ pub mod memory {
             let mut j = 0;
             for instr in instructions {
                 
-                self.main_memory[(i / MEMORY_SIZE) as usize][j] = instr as i32;
+                self.main_memory[i as usize][j] = instr as i32;
 
                 if j == 3 {
                     i = i + 1;
