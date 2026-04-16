@@ -263,6 +263,7 @@ pub fn test_control_flow() {
     let mut wb_ret = writeback.call(reg_ref, cache_ref);
     
     while wb_ret.is_none() || (wb_ret.is_some() && wb_ret.unwrap().instr_type != InstructionType::NOOP) {
+        println!("{}", "  ");
         println!("{}", "Writeback State: ");
         println!("{}", writeback.state());
         println!("{}", "  ");

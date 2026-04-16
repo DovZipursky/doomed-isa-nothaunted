@@ -1,5 +1,5 @@
 pub mod pipeline {
-    use crate::{instruction::{self, instruction::{Devices, Instruction, InstructionType}}, memory::{self, memory::{Cache, Registers, ReturnVal}}, opcode::opcode::{ADD_RI, ADD_RR, CMP_RI, CMP_RR, JE_D, JE_I, JG_D, JG_I, JL_D, JL_I, JL_PC, JMP_D, JMP_I, JMP_PC, LDR_D, LDR_I, LDR_PC, STR_D, STR_I, STR_PC}};
+    use crate::{instruction::{self, instruction::{Devices, Instruction, InstructionType}}, memory::{self, memory::{Cache, Registers, ReturnVal}}, opcode::opcode::{ADD_RI, ADD_RR, CMP_RI, CMP_RR, HALT, JE_D, JE_I, JG_D, JG_I, JL_D, JL_I, JL_PC, JMP_D, JMP_I, JMP_PC, LDR_D, LDR_I, LDR_PC, STR_D, STR_I, STR_PC}};
     use std::cell::RefCell;
     use crate::opcode::opcode;
 
@@ -28,8 +28,9 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
         cur_pc: i32,
     }
     pub struct Decode  {
-        instruction: Option<(i32, i32)>,
+        instruction: Option<(InstructionType, i32, i32)>,
         dec_instruction: Option<Instruction>,
+        next_instruction: Option<(i32, i32)>,
         pub fetch_stage: Fetch,
     }
     pub struct Execute  {
@@ -182,6 +183,9 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
             if ret_instr.is_none() || (ret_instr.is_some() && (ret_instr.unwrap().instr_type != InstructionType::Memory || ret_instr.unwrap().result.is_some())) { 
                     //if not a memeory instruction, or result has been gotten for a memory instruction:
                     self.instruction = maybe_next_instr; 
+                    if self.instruction.is_some() {
+                        println!("Memory recieved an instruction from decode with pc value {}", self.instruction.unwrap().pc.to_string());
+                    }
                     return ret_instr;
             }
 
@@ -304,6 +308,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
             let next = self.dec_stage.call(mem_status, reg, cache);
             let cur = self.instruction;
             if next.is_some() {
+                println!("Execute recieved an instruction from Decode with pc value {}", next.unwrap().pc.to_string());
                 self.instruction = next;
             }
             if mem_status != InstructionType::Blocked && cur.is_some() {
@@ -361,6 +366,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
             Decode {
                 instruction: None,
                 fetch_stage: fetch_stage,
+                next_instruction: None,
                 dec_instruction: None
             }
         }
@@ -384,8 +390,9 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                 return self.dec_instruction;
             }
             
-            if self.instruction.is_some() {
-                let (instr_binary, pc) = self.instruction.unwrap();
+            if self.instruction.is_some() && self.dec_instruction.is_none() { 
+                let (fetch_type, instr_binary, pc) = self.instruction.unwrap();
+                //self.next_instruction = None;
                 let type_field = ((instr_binary as u32) >> TYPE_SHIFT) & TYPE_MASK; //most sig bit
                 let opcode = (((instr_binary as u32) >> OPCODE_SHIFT)) & OPCODE_MASK; //next 5 bits
 
@@ -398,8 +405,23 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                 
                 //TODO
                 //add check for opcode 0 == HALT here and logic for that. 
+                if fetch_type == InstructionType::Stall {
+                    instruction = Instruction {
+                        instr_type: InstructionType::Stall,
+                        device: Devices::Decode,
+                        type_field: -1,
+                        opcode: -1,
+                        arg1: -1,
+                        arg2: -1,
+                        arg3: -1,
+                        result: None,
+                        pc: -1
+                    };
+                    self.instruction = None;
+                    self.dec_instruction = Some(instruction);
+                }
 
-                if opcode >= ALU_RANGE[0] as u32 && opcode <= ALU_RANGE[1] as u32 { //ALU section
+                else if opcode >= ALU_RANGE[0] as u32 && opcode <= ALU_RANGE[1] as u32 { //ALU section
                     instr_type = InstructionType::ALU;
                     if opcode == ADD_RI { //assume reg + immediate to dst arg3
                         arg1 = (((instr_binary as u32) >> REG1_SHIFT) & REG_MASK) as i32;
@@ -418,7 +440,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                                 result: result,
                                 pc: pc
                             };
-
+                            self.instruction = None;
                             self.dec_instruction = Some(instruction);
 
                         }
@@ -446,7 +468,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                                 result: result,
                                 pc: pc
                             };
-
+                             self.instruction = None;
                              self.dec_instruction = Some(instruction);
 
                         }
@@ -481,7 +503,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                                 result: result,
                                 pc: pc
                             };
-
+                            self.instruction = None;
                             self.dec_instruction = Some(instruction);
 
                         }
@@ -510,7 +532,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                                 result: result,
                                 pc: pc
                             };
-
+                             self.instruction = None;
                              self.dec_instruction = Some(instruction);
 
                         }
@@ -538,8 +560,8 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                                 result: result,
                                 pc: pc
                             };
-
-                             self.dec_instruction = Some(instruction);
+                            self.instruction = None;
+                            self.dec_instruction = Some(instruction);
 
                         }
 
@@ -573,7 +595,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                             result: None,
                             pc: pc
                         };
-
+                        self.instruction = None;
                         self.dec_instruction = Some(instruction);
                     }
 
@@ -595,7 +617,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                         result: None,
                         pc: -1
                     };
-
+                    self.instruction = None;
                     self.dec_instruction = Some(instruction);
 
 
@@ -606,21 +628,23 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
             let (fetch_return, new_instr, instr_pc) = self.fetch_stage.call(dec_status, reg, cache);
 
             if fetch_return == InstructionType::NotBlocked {
-                println!("Decode recieved an instruction from fetch: {}", new_instr.to_string());
-                self.instruction = Some((new_instr, instr_pc));
+                println!("Decode recieved an instruction from fetch: {} with a pc value of {}", new_instr.to_string(), instr_pc.to_string());
+                self.instruction = Some((fetch_return, new_instr, instr_pc));
             }
             else {
                 println!("Decode recieved a stall from fetch");
-                    //might happen but fine
+                //self.instruction = Some((fetch_return, new_instr, instr_pc));
             }
 
-            if let Some(mut instr) = self.dec_instruction.take() && exec_status != InstructionType::Blocked {
+            if self.dec_instruction.is_some() && exec_status != InstructionType::Blocked {
+                let Some(mut instr) = self.dec_instruction.take() else { return None };
                 if instr.instr_type == InstructionType::ALU {
                     if instr.opcode == ADD_RR as i32 {
                         if  !reg.is_pending(instr.arg1 as usize) && !reg.is_pending(instr.arg2 as usize) {
                             instr.arg1 = reg.get_gp(instr.arg1 as usize);
                             instr.arg2 = reg.get_gp(instr.arg2 as usize);
                             reg.update_pending(instr.arg3 as usize, true);
+                            self.dec_instruction = None;
                             //self.instruction = None;
                             return Some(instr);
                         }
@@ -644,7 +668,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                             instr.arg1 = reg.get_gp(instr.arg1 as usize);
                             reg.update_pending(instr.arg3 as usize, true);
                             let ret_instr = self.dec_instruction.take();
-                            //self.instruction = None;
+                            self.dec_instruction = None;
                             return Some(instr);
                         }
                         else {
@@ -739,7 +763,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                                 if !reg.is_pending(instr.arg1 as usize) && reg.is_pending(instr.arg2 as usize) {
                                     instr.arg1 = reg.get_gp(instr.arg1 as usize);
                                     instr.arg2 = reg.get_gp(instr.arg2 as usize);
-                                    //self.instruction = None;
+                                    self.dec_instruction = None;
                                     return Some(instr);
                                 }
                                 else {
@@ -813,10 +837,15 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                         });
                     }
                 }
+                else if instr.instr_type == InstructionType::Squashed {
+                    self.dec_instruction = None;
+                    return Some(instr);
+                }
 
                 else {
                     
                     //self.instruction = None;
+                    self.dec_instruction = Some(instr);
                     return Some(instr)
                 }
 
@@ -833,10 +862,11 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
             let cur_inst: i32;
             let ret_cur_inst: String;
             let _pc: i32;
+            let _type: InstructionType;
             let dec_inst: String;
 
             if self.instruction.is_some() {
-                (cur_inst, _pc) = self.instruction.unwrap();
+                (_type, cur_inst, _pc) = self.instruction.unwrap();
                 ret_cur_inst = cur_inst.to_string();
 
             }
