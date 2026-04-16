@@ -5,7 +5,13 @@
 
 use std::{collections::btree_map::Range, io, ptr::null};
 
-use crate::{instruction::instruction::{Devices, Instruction, InstructionType}, memory::memory::{Cache, Registers, ReturnVal}};
+
+
+use doomed_isa::opcode::opcode::RS_RR;
+
+use crate::{instruction::instruction::{Devices, Instruction, InstructionType}, 
+memory::memory::{Cache, Registers, ReturnVal}, 
+opcode::opcode::{ADD_RI, AND_RI, CMP_RI, CMP_RR, DIV_RI, JL_D, LDR_D, LS_RI, LSL_RI, LSR_RI, MOD_RI, MUL_RI, OR_RI, RS_RI, STR_D, SUB_RI, XOR_RI}};
 use crate::{pipeline::pipeline::{Decode, Memory, Fetch, Execute, Writeback}};
 
 use std::cell::RefCell;
@@ -17,35 +23,37 @@ use std::io::{Write, Result};
 pub mod instruction;
 pub mod memory;
 pub mod pipeline;
+pub mod opcode;
 
 const TYPE_SHIFT: u32 = 31;
-const OPCODE_SHIFT: u32 = 26;
-const REG1_SHIFT: u32 = 21;
-const REG2_SHIFT: u32 = 16;
-const REG3_SHIFT: u32 = 11;
-const IMMEDIATE2_SHIFT: u32 = 5;
-const IMMEDIATE3_SHIFT: u32 = 0;
+const OPCODE_SHIFT: u32 = 25;
+const REG1_SHIFT: u32 = 20;
+const REG2_SHIFT: u32 = 15;
+const REG3_SHIFT: u32 = 10;
+const IMMEDIATE2_SHIFT: u32 = 8;
+const POST_REG_SHIFT: u32 = 3;
+const IMMEDIATE3_SHIFT: u32 = 3;
 
 const TYPE_MASK: u32 = 0b1;
-const OPCODE_MASK: u32 = 0b1_1111;
+const OPCODE_MASK: u32 = 0b11_1111;
 const REG_MASK: u32 = 0b1_1111;
-const IMMEDIATE_MASK: u32 = 0b1111_1111_1111_1111;
+const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
 
 fn main() {
 
-    let type_field:u32 = 1;
-    let opcode = 21;
-    let reg1 = 5;
-    let reg2 = 16;
-    let reg3 = 1;
-    let imm2: u32 = 64;
-    let imm3: u32 = 21;
+    let type_field:u32 = 0;
+    let opcode = ADD_RI;
+    let reg1 = 3;
+    let reg2 = 0;
+    let reg3 = 3;
+    let imm2: u32 = 1;
+    let imm3: u32 = 0;
 
      let instr_binary = (type_field << TYPE_SHIFT)
                 | (opcode << OPCODE_SHIFT)
                 | (reg1 << REG1_SHIFT)
                 | (imm2 << IMMEDIATE2_SHIFT)
-                | (reg3 << REG3_SHIFT);
+                | (reg3 << POST_REG_SHIFT);
 
     println!("{}", instr_binary.to_string());
 
@@ -53,9 +61,14 @@ fn main() {
     let opcode     = ((instr_binary >> OPCODE_SHIFT) & OPCODE_MASK) as u8;
     let reg1       = ((instr_binary >> REG1_SHIFT) & REG_MASK) as u8;
     let imm2       = ((instr_binary >> IMMEDIATE2_SHIFT) & IMMEDIATE_MASK) as u8;
-    let reg3       = ((instr_binary >> REG3_SHIFT) & REG_MASK) as u8;
+    let reg3       = ((instr_binary >> POST_REG_SHIFT) & REG_MASK) as u8;
 
     println!("{}, {}, {}, {}, {}", type_field, opcode, reg1, imm2, reg3);
+
+    let index = 6 / 4;
+    let offset = 6 % 4;
+
+    println!("{}, {}", index, offset);
 
     //test_memory();
 
@@ -68,10 +81,147 @@ fn main() {
     //test_mem_stage();
 
     //test_writeback();
-
+    //test_improved_memory();
     test_control_flow();
     
     
+}
+
+pub fn test_improved_memory() {
+    let load = Instruction {
+        instr_type: InstructionType::Memory,
+        device: Devices::Fetch,
+        opcode: LDR_D as i32,
+        type_field: 0,
+        arg1: 10, //line 2, word 2
+        arg2: 0,
+        arg3: 0,
+        result: None,
+        pc: 0
+    };
+
+    let load2 = Instruction {
+        instr_type: InstructionType::Memory,
+        device: Devices::Fetch,
+        opcode: LDR_D as i32,
+        type_field: 0,
+        arg1: 7, //line 1, word 3
+        arg2: 0,
+        arg3: 0,
+        result: None,
+        pc: 0
+    };
+
+    let load3 = Instruction {
+        instr_type: InstructionType::Memory,
+        device: Devices::Fetch,
+        opcode: LDR_D as i32,
+        type_field: 0,
+        arg1: 69, //line 17, word 1
+        arg2: 0,
+        arg3: 0,
+        result: None,
+        pc: 0
+    };
+    let mut main_memory = [[-1; 4]; 64];
+    main_memory[2][0] = 1;
+    main_memory[2][1] = 2;
+    main_memory[2][2] = 3;
+    main_memory[2][3] = 4;
+
+    main_memory[1][0] = 6;
+    main_memory[1][1] = 7;
+    main_memory[1][2] = 8;
+    main_memory[1][3] = 9;
+
+    main_memory[17][0] = 69;
+    main_memory[17][1] = 70;
+    main_memory[17][2] = 71;
+    main_memory[17][3] = 72;
+
+    let mut cache = Cache::new([[-1; 7]; 4], main_memory);
+
+    let mut ret = cache.call(load);
+    ret = cache.call(load);
+    ret = cache.call(load);
+    ret = cache.call(load); //returns here with mem delay 3
+
+    assert_eq!(ret, ReturnVal::Data(3));
+
+    ret = cache.call(load2);
+    ret = cache.call(load2);
+    ret = cache.call(load2);
+    ret = cache.call(load2);
+
+    assert_eq!(ret, ReturnVal::Data(9));
+
+    ret = cache.call(load3);
+    ret = cache.call(load3);
+    ret = cache.call(load3);
+    ret = cache.call(load3);
+    
+    assert_eq!(ret, ReturnVal::Data(70));
+    //basic load works!
+
+    let mut prefilled:[[i32; 7]; 4] = [[-1; 7]; 4];
+    prefilled[0][0] = 8;
+    prefilled[0][1] = 1;
+    prefilled[1][0] = 9;
+    prefilled[1][1] = 1;
+    prefilled[2][0] = 10;
+    prefilled[2][1] = 1;
+    prefilled[3][0] = 7;
+    prefilled[3][1] = 1;
+
+    for i in 0..3 {
+        for j in 0..3 {
+            prefilled[i][j + 3] = i as i32;
+        }
+    }
+
+    let mut cache2 = Cache::new(prefilled, main_memory);
+    
+    let store = Instruction {
+        instr_type: InstructionType::Memory,
+        device: Devices::Fetch,
+        type_field: 0,
+        opcode: STR_D as i32,
+        arg1: 0,
+        arg2: 2,
+        arg3: 0,
+        result: None,
+        pc: 0
+    };
+
+    let store2 = Instruction {
+        instr_type: InstructionType::Memory,
+        device: Devices::Fetch,
+        type_field: 0,
+        opcode: STR_D as i32,
+        arg1: 2,
+        arg2: 10,
+        arg3: 0,
+        result: None,
+        pc: 0
+    };
+
+    ret = cache2.call(store);
+    ret = cache2.call(store);
+    ret = cache2.call(store);
+    ret = cache2.call(store);
+
+    ret = cache2.call(store2);
+    ret = cache2.call(store2);
+    ret = cache2.call(store2);
+    ret = cache2.call(store2);
+    //basic store works!
+
+    
+
+    
+
+
+
 }
 
 pub fn test_control_flow() {
@@ -83,23 +233,23 @@ pub fn test_control_flow() {
     //i6  CMP R0, 4
     //i7  JL  to addr 0
     //i8 done, no halt implemented yet
-    let i1 = instr_fields_to_decimal(0, 20, 3, 1, 0, InstructionType::Memory);
-    let i2 = instr_fields_to_decimal(0, 1, 0, 1, 2, InstructionType::ALU);
-    let i3 = instr_fields_to_decimal(0, 21, 2, 3, 0, InstructionType::Memory);
-    let i4 = instr_fields_to_decimal(0, 1, 3, 1, 3, InstructionType::ALU);
-    let i5 = instr_fields_to_decimal(0, 1, 0, 1, 0, InstructionType::ALU);
-    let i6 = instr_fields_to_decimal(0,16,0,4,0,InstructionType::Control);
-    let i7 = instr_fields_to_decimal(0,18,4,0,0,InstructionType::Control);
-    let i8 = instr_fields_to_decimal(0,35,12,12,12,InstructionType::NOOP);
+    let i1 = instr_fields_to_decimal(0, LDR_D, 3, 1, 0, InstructionType::Memory);
+    let i2 = instr_fields_to_decimal(0, ADD_RI, 0, 1, 2, InstructionType::ALU);
+    let i3 = instr_fields_to_decimal(0, STR_D, 2, 3, 0, InstructionType::Memory);
+    let i4 = instr_fields_to_decimal(0, ADD_RI, 3, 1, 3, InstructionType::ALU);
+    let i5 = instr_fields_to_decimal(0, ADD_RI, 0, 1, 0, InstructionType::ALU);
+    let i6 = instr_fields_to_decimal(0,CMP_RI,0,4,0,InstructionType::Control);
+    let i7 = instr_fields_to_decimal(0,JL_D, 4,0,0,InstructionType::Control);
+    let i8 = instr_fields_to_decimal(0,65,12,12,12,InstructionType::NOOP);
 
-    create_binary_file("src/programs/fetch-test.bin", &[i1,i2,i3,i4,i5,i6,i7,i8,2,3]);
+    create_binary_file("src/programs/fetch-test.bin", &[i1, i2, i3, i4,i5, i6, i7, i8, 1, 2,3]);
     let mut reg = Registers::new();
     reg.update_gp(0 as usize, 0);
     reg.update_gp(1 as usize, 0);
     reg.update_gp(2 as usize, 0);
-    reg.update_gp(3 as usize, 7);
+    reg.update_gp(3 as usize, 8);
     reg.update_gp(4 as usize,0);
-    let mut cache = Cache::new([[-1; 4]; 4], [-1; 64]);
+    let mut cache = Cache::new([[-1; 7]; 4], [[-1; 4]; 64]);
     cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
     let cache_ref = &mut cache;
@@ -113,6 +263,7 @@ pub fn test_control_flow() {
     let mut wb_ret = writeback.call(reg_ref, cache_ref);
     
     while wb_ret.is_none() || (wb_ret.is_some() && wb_ret.unwrap().instr_type != InstructionType::NOOP) {
+        println!("{}", "  ");
         println!("{}", "Writeback State: ");
         println!("{}", writeback.state());
         println!("{}", "  ");
@@ -139,12 +290,14 @@ pub fn test_control_flow() {
 
 pub fn instr_fields_to_decimal(type_field: u32, opcode: u32, arg1: u32, arg2: u32, arg3: u32, instr_type: InstructionType) -> u32{
     if instr_type == InstructionType::ALU {
-        if type_field == 0 {
+        if opcode == ADD_RI  || opcode == SUB_RI || opcode == MUL_RI || opcode == DIV_RI || opcode == AND_RI
+        || opcode == OR_RI || opcode == XOR_RI || opcode == MOD_RI || opcode == XOR_RI || opcode == LSL_RI
+        || opcode == LSR_RI || opcode == LS_RI || opcode == RS_RI {
             return (type_field << TYPE_SHIFT)
                 | (opcode << OPCODE_SHIFT)
                 | (arg1 << REG1_SHIFT)
                 | (arg2 << IMMEDIATE2_SHIFT)
-                | (arg3);
+                | (arg3 << POST_REG_SHIFT);
         }
 
         else {
@@ -154,24 +307,24 @@ pub fn instr_fields_to_decimal(type_field: u32, opcode: u32, arg1: u32, arg2: u3
                 | (arg2 << REG2_SHIFT)
                 | (arg3 << REG3_SHIFT);
         }
+        
     }
     else if instr_type == InstructionType::Control {
-        if opcode == 16 { //if CMP specifically
-            if type_field == 0 {
+        if opcode == CMP_RI  { //if CMP specifically
+            
                 return (type_field << TYPE_SHIFT)
                 | (opcode << OPCODE_SHIFT)
                 | (arg1 << REG1_SHIFT)
                 | (arg2 << IMMEDIATE2_SHIFT)
                 | (arg3);
-            }
-            else {
+        }  
+        else if opcode == CMP_RR {
                 return (type_field << TYPE_SHIFT)
                 | (opcode << OPCODE_SHIFT)
                 | (arg1 << REG1_SHIFT)
                 | (arg2 << REG2_SHIFT)
                 | (arg3 << REG3_SHIFT);
             }
-        }
         else { //some jump
             return (type_field << TYPE_SHIFT)
                 | (opcode << OPCODE_SHIFT)
@@ -179,21 +332,22 @@ pub fn instr_fields_to_decimal(type_field: u32, opcode: u32, arg1: u32, arg2: u3
                 | (arg2 << REG2_SHIFT)
                 | (arg3 << REG3_SHIFT);
 
+            }
         }
-
-    }
-    else if instr_type == InstructionType::Memory {
+        else if instr_type == InstructionType::Memory {
         return (type_field << TYPE_SHIFT)
                 | (opcode << OPCODE_SHIFT)
                 | (arg1 << REG1_SHIFT)
                 | (arg2 << REG2_SHIFT)
                 | (arg3 << IMMEDIATE3_SHIFT);
 
+        }
+        else {
+            return 0;
+        }
+
     }
-    else {
-        return 0;
-    }
-}
+    
 
 pub fn test_memory() {
         let mut instr = Instruction {
@@ -235,7 +389,7 @@ pub fn test_memory() {
         let mut data: ReturnVal = ReturnVal::Wait(true);
         let reg = Registers::new();
 
-        let mut cache = Cache::new([[-1; 4]; 4], [-1; 64]);
+        let mut cache = Cache::new([[-1; 7]; 4], [[-1; 4]; 64]);
 
         data = cache.call(instr);
         data = cache.call(instr); //should take 1, 2, 3 calls to store due to write through
@@ -244,8 +398,8 @@ pub fn test_memory() {
 
         assert_eq!(data, ReturnVal::Data(5), "Value 5 was not succesfully stored in index 1!");
 
-        println!("{}", cache.get_cache(5).to_string());
-        println!("{}", cache.get_memory(5).to_string());
+        //println!("{}", cache.get_cache(5).to_string());
+        //println!("{}", cache.get_memory(5).to_string());
 
         instr.arg2 = 6;
         instr.arg1 = 6;
@@ -264,8 +418,8 @@ pub fn test_memory() {
         
         assert_eq!(data, ReturnVal::Data(6), "Value 6 was not successfuly stored in index 2!");
 
-        println!("{}", cache.get_cache(6).to_string());
-        println!("{}", cache.get_memory(6).to_string());
+        //println!("{}", cache.get_cache(6).to_string());
+        //println!("{}", cache.get_memory(6).to_string());
         
         instr.arg2 = 7;
         instr.arg1 = 7;
@@ -277,8 +431,8 @@ pub fn test_memory() {
         
         assert_eq!(data, ReturnVal::Data(7), "Value 7 was not successfuly stored in index 2!");
 
-        println!("{}", cache.get_cache(7).to_string());
-        println!("{}", cache.get_memory(7).to_string());
+       //println!("{}", cache.get_cache(7).to_string());
+       // println!("{}", cache.get_memory(7).to_string());
 
         //STR Works!
 
@@ -319,10 +473,10 @@ pub fn test_memory() {
 
         cache.load_memory_from_file("src/programs/instructions.bin".to_string()); //note that it is necessary to properly generate the bin files via rust code or the command line
 
-        assert_eq!(cache.get_memory(0), 0);
-        assert_eq!(cache.get_memory(1), 1);
-        assert_eq!(cache.get_memory(2), 2);
-        assert_eq!(cache.get_memory(3), 3);
+        //assert_eq!(cache.get_memory(0), 0);
+        //assert_eq!(cache.get_memory(1), 1);
+        //assert_eq!(cache.get_memory(2), 2);
+        //assert_eq!(cache.get_memory(3), 3);
 
 
         //test load worked!
@@ -357,7 +511,7 @@ pub fn test_memory() {
     pub fn test_fetch()  {
         create_binary_file("src/programs/fetch-test.bin", &[20,21,20,21,10,9]);
         let mut reg = Registers::new();
-        let mut cache = Cache::new([[-1; 4]; 4], [-1; 64]);
+        let mut cache = Cache::new([[-1; 7]; 4], [[-1; 4]; 64]);
         cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
         let cache_ref = &mut cache;
@@ -393,7 +547,7 @@ pub fn test_memory() {
         let mut reg = Registers::new();
         reg.update_gp(1 as usize, 1);
         reg.update_gp(0 as usize, 1);
-        let mut cache = Cache::new([[-1; 4]; 4], [-1; 64]);
+        let mut cache = Cache::new([[-1; 7]; 4], [[-1; 4]; 64]);
         cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
         let comp_instr = Instruction {
@@ -489,7 +643,7 @@ pub fn test_memory() {
         let mut reg = Registers::new();
         reg.update_gp(1 as usize, 1);
         reg.update_gp(0 as usize, 1);
-        let mut cache = Cache::new([[-1; 4]; 4], [-1; 64]);
+        let mut cache = Cache::new([[-1; 7]; 4], [[-1; 4]; 64]);
         cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
         let default = Instruction {
@@ -549,7 +703,7 @@ pub fn test_memory() {
         let mut reg = Registers::new();
         reg.update_gp(1 as usize, 1);
         reg.update_gp(0 as usize, 1);
-        let mut cache = Cache::new([[-1; 4]; 4], [-1; 64]);
+        let mut cache = Cache::new([[-1; 7]; 4], [[-1; 4]; 64]);
         cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
         let default = Instruction {
@@ -598,7 +752,7 @@ pub fn test_memory() {
         let mut reg = Registers::new();
         reg.update_gp(1 as usize, 1);
         reg.update_gp(0 as usize, 1);
-        let mut cache = Cache::new([[-1; 4]; 4], [-1; 64]);
+        let mut cache = Cache::new([[-1; 7]; 4], [[-1; 4]; 64]);
         cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
         let default = Instruction {

@@ -1,98 +1,12 @@
-   0.226593791s  INFO prepare_target{force=false package_id=doomed-isa v0.1.0 (/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted) target="doomed_isa"}: cargo::core::compiler::fingerprint: fingerprint error for doomed-isa v0.1.0 (/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted)/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("doomed_isa", ["lib"], "/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted/src/lib.rs", Edition2024) }
-   0.226879625s  INFO prepare_target{force=false package_id=doomed-isa v0.1.0 (/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted) target="doomed_isa"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted/target/debug/.fingerprint/doomed-isa-d494f6452d5c911f/lib-doomed_isa`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: std::backtrace::Backtrace::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: <cargo::core::compiler::build_runner::BuildRunner>::compile
-   7: cargo::ops::cargo_compile::compile_ws
-   8: cargo::ops::cargo_compile::compile_with_exec
-   9: cargo::ops::cargo_compile::compile
-  10: cargo::commands::check::exec
-  11: <cargo::cli::Exec>::exec
-  12: cargo::main
-  13: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  14: std::rt::lang_start::<()>::{closure#0}
-  15: std::rt::lang_start_internal
-  16: _main
-   0.255131958s  INFO prepare_target{force=false package_id=doomed-isa v0.1.0 (/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted) target="doomed_isa"}: cargo::core::compiler::fingerprint: fingerprint error for doomed-isa v0.1.0 (/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted)/Check { test: true }/TargetInner { name_inferred: true, ..: lib_target("doomed_isa", ["lib"], "/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted/src/lib.rs", Edition2024) }
-   0.255155083s  INFO prepare_target{force=false package_id=doomed-isa v0.1.0 (/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted) target="doomed_isa"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted/target/debug/.fingerprint/doomed-isa-7d645c88f758db9b/test-lib-doomed_isa`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: std::backtrace::Backtrace::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: <cargo::core::compiler::build_runner::BuildRunner>::compile
-   7: cargo::ops::cargo_compile::compile_ws
-   8: cargo::ops::cargo_compile::compile_with_exec
-   9: cargo::ops::cargo_compile::compile
-  10: cargo::commands::check::exec
-  11: <cargo::cli::Exec>::exec
-  12: cargo::main
-  13: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  14: std::rt::lang_start::<()>::{closure#0}
-  15: std::rt::lang_start_internal
-  16: _main
-   0.255543833s  INFO prepare_target{force=false package_id=doomed-isa v0.1.0 (/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted) target="doomed-isa"}: cargo::core::compiler::fingerprint: fingerprint error for doomed-isa v0.1.0 (/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted)/Check { test: false }/TargetInner { name: "doomed-isa", doc: true, ..: with_path("/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted/src/main.rs", Edition2024) }
-   0.255551500s  INFO prepare_target{force=false package_id=doomed-isa v0.1.0 (/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted) target="doomed-isa"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted/target/debug/.fingerprint/doomed-isa-2c0e4ba3c1c35b21/bin-doomed-isa`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: std::backtrace::Backtrace::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: <cargo::core::compiler::build_runner::BuildRunner>::compile
-   7: cargo::ops::cargo_compile::compile_ws
-   8: cargo::ops::cargo_compile::compile_with_exec
-   9: cargo::ops::cargo_compile::compile
-  10: cargo::commands::check::exec
-  11: <cargo::cli::Exec>::exec
-  12: cargo::main
-  13: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  14: std::rt::lang_start::<()>::{closure#0}
-  15: std::rt::lang_start_internal
-  16: _main
-   0.255889833s  INFO prepare_target{force=false package_id=doomed-isa v0.1.0 (/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted) target="doomed-isa"}: cargo::core::compiler::fingerprint: fingerprint error for doomed-isa v0.1.0 (/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted)/Check { test: true }/TargetInner { name: "doomed-isa", doc: true, ..: with_path("/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted/src/main.rs", Edition2024) }
-   0.255898875s  INFO prepare_target{force=false package_id=doomed-isa v0.1.0 (/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted) target="doomed-isa"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted/target/debug/.fingerprint/doomed-isa-bb8d5608ebe37e25/test-bin-doomed-isa`
-
-Caused by:
-    No such file or directory (os error 2)
-
-Stack backtrace:
-   0: std::backtrace::Backtrace::create
-   1: cargo_util::paths::read_bytes
-   2: cargo_util::paths::read
-   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
-   4: cargo::core::compiler::fingerprint::prepare_target
-   5: cargo::core::compiler::compile
-   6: <cargo::core::compiler::build_runner::BuildRunner>::compile
-   7: cargo::ops::cargo_compile::compile_ws
-   8: cargo::ops::cargo_compile::compile_with_exec
-   9: cargo::ops::cargo_compile::compile
-  10: cargo::commands::check::exec
-  11: <cargo::cli::Exec>::exec
-  12: cargo::main
-  13: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
-  14: std::rt::lang_start::<()>::{closure#0}
-  15: std::rt::lang_start_internal
-  16: _main
+   0.388840917s  INFO prepare_target{force=false package_id=doomed-isa v0.1.0 (/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted) target="doomed-isa"}: cargo::core::compiler::fingerprint: stale: changed "/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted/src/pipeline.rs"
+   0.388853000s  INFO prepare_target{force=false package_id=doomed-isa v0.1.0 (/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted) target="doomed-isa"}: cargo::core::compiler::fingerprint:           (vs) "/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted/target/debug/.fingerprint/doomed-isa-2c0e4ba3c1c35b21/dep-bin-doomed-isa"
+   0.388857375s  INFO prepare_target{force=false package_id=doomed-isa v0.1.0 (/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted) target="doomed-isa"}: cargo::core::compiler::fingerprint:                FileTime { seconds: 1776361203, nanos: 894119677 } < FileTime { seconds: 1776361512, nanos: 450171614 }
+   0.389323000s  INFO prepare_target{force=false package_id=doomed-isa v0.1.0 (/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted) target="doomed-isa"}: cargo::core::compiler::fingerprint: fingerprint dirty for doomed-isa v0.1.0 (/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted)/Check { test: false }/TargetInner { name: "doomed-isa", doc: true, ..: with_path("/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted/src/main.rs", Edition2024) }
+   0.390054083s  INFO prepare_target{force=false package_id=doomed-isa v0.1.0 (/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted) target="doomed-isa"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(StaleItem(ChangedFile { reference: "/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted/target/debug/.fingerprint/doomed-isa-2c0e4ba3c1c35b21/dep-bin-doomed-isa", reference_mtime: FileTime { seconds: 1776361203, nanos: 894119677 }, stale: "/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted/src/pipeline.rs", stale_mtime: FileTime { seconds: 1776361512, nanos: 450171614 } }))
+   0.391636750s  INFO prepare_target{force=false package_id=doomed-isa v0.1.0 (/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted) target="doomed-isa"}: cargo::core::compiler::fingerprint: stale: changed "/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted/src/pipeline.rs"
+   0.391643500s  INFO prepare_target{force=false package_id=doomed-isa v0.1.0 (/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted) target="doomed-isa"}: cargo::core::compiler::fingerprint:           (vs) "/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted/target/debug/.fingerprint/doomed-isa-bb8d5608ebe37e25/dep-test-bin-doomed-isa"
+   0.391646875s  INFO prepare_target{force=false package_id=doomed-isa v0.1.0 (/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted) target="doomed-isa"}: cargo::core::compiler::fingerprint:                FileTime { seconds: 1776361203, nanos: 894139676 } < FileTime { seconds: 1776361512, nanos: 450171614 }
+   0.391780667s  INFO prepare_target{force=false package_id=doomed-isa v0.1.0 (/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted) target="doomed-isa"}: cargo::core::compiler::fingerprint: fingerprint dirty for doomed-isa v0.1.0 (/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted)/Check { test: true }/TargetInner { name: "doomed-isa", doc: true, ..: with_path("/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted/src/main.rs", Edition2024) }
+   0.391789500s  INFO prepare_target{force=false package_id=doomed-isa v0.1.0 (/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted) target="doomed-isa"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(StaleItem(ChangedFile { reference: "/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted/target/debug/.fingerprint/doomed-isa-bb8d5608ebe37e25/dep-test-bin-doomed-isa", reference_mtime: FileTime { seconds: 1776361203, nanos: 894139676 }, stale: "/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted/src/pipeline.rs", stale_mtime: FileTime { seconds: 1776361512, nanos: 450171614 } }))
     Checking doomed-isa v0.1.0 (/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.02s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.01s

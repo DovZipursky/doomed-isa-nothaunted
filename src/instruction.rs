@@ -2,6 +2,7 @@ pub mod instruction {
     use std::fmt;
     use strum_macros::Display;
 
+
     #[derive(Eq, PartialEq, Copy, Clone, Display, Debug)]
     pub enum InstructionType {
         ALU,
@@ -69,5 +70,6 @@ pub mod instruction {
 
         }
     }
+
 
 }
