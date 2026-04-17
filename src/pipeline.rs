@@ -25,7 +25,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
     pub struct Fetch {
         load_instruction: Option<Instruction>,
         cur_instruction: Option<i32>,
-        cur_pc: i32,
+        cur_pc: i32
     }
     pub struct Decode  {
         instruction: Option<(InstructionType, i32, i32)>,
@@ -43,18 +43,54 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
     }
     pub struct Writeback  {
         instruction: Option<Instruction>,
-        pub mem_stage: Memory,
+        pub mem_stage: Memory
+    }
+
+    pub struct Controler {
+        on: bool,
+        processing: i32
+    }
+
+    impl Controler {
+        pub fn new() -> Self {
+            Controler {
+                on: true,
+                processing: 0
+            }
+        }
+
+        pub fn switch(&mut self, val: bool) {
+            self.on = val;
+        }
+
+        pub fn inc(&mut self) {
+            self.processing = self.processing + 1;
+        }
+
+        pub fn dec(&mut self) {
+            self.processing = self.processing - 1;
+        }
+
+        pub fn status(&self) -> bool {
+            return self.on;
+        }
+
+        pub fn in_process(&self) -> i32 {
+            return self.processing;
+        }
+
+
     }
 
     impl Writeback {
         pub fn new(mem_stage: Memory) -> Self {
             Writeback {
                 instruction: None,
-                mem_stage: mem_stage,
+                mem_stage: mem_stage
             }
         }
 
-        pub fn call(&mut self, reg: &mut Registers, cache: &mut Cache) -> Option<Instruction>{
+        pub fn call(&mut self, reg: &mut Registers, cache: &mut Cache, ctrl: &mut Controler) -> Option<Instruction>{
             let mut wb_status = InstructionType::NotBlocked;
             //if there is some instruction that is not NOOP, Stalled, or Squashed:
             if self.instruction.is_some()  && (self.instruction.unwrap().instr_type !=  InstructionType::NOOP ||self.instruction.unwrap().instr_type !=  InstructionType::Squashed || self.instruction.unwrap().instr_type !=  InstructionType::Stall) {
@@ -72,6 +108,10 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                         reg.update_pending(instr.arg1 as usize, false);
                     }
                     //write to register and update to no longer pending
+
+                    if !ctrl.status() {
+                        ctrl.dec();
+                    }
                     
                     
                 }
@@ -81,6 +121,10 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                     reg.update_gp(instr.arg3 as usize, instr.result.unwrap());
                     
                     reg.update_pending(instr.arg3 as usize, false); 
+
+                    if !ctrl.status() {
+                        ctrl.dec();
+                    }
                 }   
 
                 else if instr.instr_type == InstructionType::Control { //if it is a control flow instruction
@@ -94,12 +138,15 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                         reg.update_gp(32, instr.result.unwrap());
                         
                     }
-
-                   
+                    if !ctrl.status() {
+                        ctrl.dec();
+                    }
+ 
                 }
+
             }
             println!("Writeback status: {}", wb_status.to_string());
-            let next_instr = self.mem_stage.call(reg, cache, wb_status);
+            let next_instr = self.mem_stage.call(reg, cache, wb_status, ctrl);
 
             let ret_instr = self.instruction;
             self.instruction = next_instr;
@@ -130,7 +177,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
             }
         }
 
-        pub fn call(&mut self, reg: &mut Registers, cache: &mut Cache, wb_status: InstructionType) -> Option<Instruction>{
+        pub fn call(&mut self, reg: &mut Registers, cache: &mut Cache, wb_status: InstructionType, ctrl: &mut Controler) -> Option<Instruction>{
             let mut mem_status: InstructionType = InstructionType::Blocked;
             let mut result: ReturnVal = ReturnVal::Wait(true);
             
@@ -147,7 +194,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                                         pc: -1
                     });
                 mem_status = InstructionType::Squashed;
-                let maybe_next_instr = self.exec_stage.call(mem_status, reg, cache);
+                let maybe_next_instr = self.exec_stage.call(mem_status, reg, cache, ctrl);
                 return self.instruction;
 
             }
@@ -176,7 +223,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                 mem_status = InstructionType::NotBlocked;
             }
             println!("Memory status: {}", mem_status.to_string());
-            let maybe_next_instr = self.exec_stage.call(mem_status, reg, cache);
+            let maybe_next_instr = self.exec_stage.call(mem_status, reg, cache, ctrl);
 
             
             let ret_instr = self.instruction;
@@ -233,7 +280,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
             }
         }
 
-        pub fn call(&mut self, mem_status: InstructionType, reg: &mut Registers, cache: &mut Cache) -> Option<Instruction> {
+        pub fn call(&mut self, mem_status: InstructionType, reg: &mut Registers, cache: &mut Cache, ctrl: &mut Controler) -> Option<Instruction> {
             if mem_status == InstructionType::Squashed {
                 self.instruction = Some(Instruction {
                                         instr_type: InstructionType::Squashed,
@@ -246,7 +293,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                                         result: None,
                                         pc: -1
                     });
-                let dec_ret = self.dec_stage.call(mem_status, reg, cache);
+                let dec_ret = self.dec_stage.call(mem_status, reg, cache, ctrl);
                 return self.instruction;
             }
             if let Some(instr) = self.instruction.as_mut() {
@@ -305,7 +352,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
 
             }
             println!("Execute status: {}", mem_status.to_string());
-            let next = self.dec_stage.call(mem_status, reg, cache);
+            let next = self.dec_stage.call(mem_status, reg, cache, ctrl);
             let cur = self.instruction;
             if next.is_some() {
                 println!("Execute recieved an instruction from Decode with pc value {}", next.unwrap().pc.to_string());
@@ -371,7 +418,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
             }
         }
 
-        pub fn call(&mut self, exec_status: InstructionType, reg: &mut Registers, cache: &mut Cache) -> Option<Instruction> {
+        pub fn call(&mut self, exec_status: InstructionType, reg: &mut Registers, cache: &mut Cache, ctrl: &mut Controler) -> Option<Instruction> {
             let mut dec_status = exec_status;
             if dec_status == InstructionType::Squashed {
                 self.dec_instruction = Some(Instruction {
@@ -386,7 +433,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                                         pc: -1
                     });
                 self.instruction = None;
-                let _fetch_ret = self.fetch_stage.call(dec_status, reg, cache);
+                let _fetch_ret = self.fetch_stage.call(dec_status, reg, cache, ctrl);
                 return self.dec_instruction;
             }
             
@@ -625,7 +672,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
             }
 
             println!("Decode status: {}", dec_status.to_string());
-            let (fetch_return, new_instr, instr_pc) = self.fetch_stage.call(dec_status, reg, cache);
+            let (fetch_return, new_instr, instr_pc) = self.fetch_stage.call(dec_status, reg, cache, ctrl);
 
             if fetch_return == InstructionType::NotBlocked {
                 println!("Decode recieved an instruction from fetch: {} with a pc value of {}", new_instr.to_string(), instr_pc.to_string());
@@ -899,13 +946,17 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
         //call: used by Decode to call Fetch. 
         //Returns: InstructionType/integer triple, (stall/not stall, instruction bits, instruction pc). 
         //InstructionType is to indicate if it is blocked/stalling. Any other return value just means there is an instruction being returned.
-        pub fn call(&mut self, decode_status: InstructionType, reg: &mut Registers, cache: &mut Cache) -> (InstructionType, i32, i32) { //add PC value to return element
+        pub fn call(&mut self, decode_status: InstructionType, reg: &mut Registers, cache: &mut Cache, ctrl: &mut Controler) -> (InstructionType, i32, i32) { //add PC value to return element
             
             if decode_status == InstructionType::Squashed {
                 self.load_instruction = None;
                 self.cur_instruction = None;
                 cache.squash_cache();
                 return (InstructionType::Squashed, -1, -1);
+            }
+
+            if !ctrl.status() && ctrl.in_process() > 0 {
+                return return (InstructionType::Stall, -1, -1);
             }
 
             if self.load_instruction.is_none() {
@@ -952,6 +1003,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                 self.load_instruction = None;
                 let ret_val = self.cur_instruction.unwrap();
                 self.cur_instruction = None;
+                ctrl.inc();
                 return (InstructionType::NotBlocked, ret_val, self.cur_pc);
             }
             else {
