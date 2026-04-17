@@ -81,7 +81,8 @@ pub mod memory {
         counter: i32,
         servicing: Devices,
         instruction: Option<Instruction>,
-        hit: bool
+        hit: bool,
+        on: bool
     }
 
     impl Cache {
@@ -98,6 +99,7 @@ pub mod memory {
                 servicing: Devices::Free,
                 instruction: None, 
                 hit: false,
+                on: true
             }
         }
 
@@ -123,8 +125,14 @@ pub mod memory {
                     //check hit/miss
                     let index = (instr.arg1 / 4) % CACHE_SIZE;
                     let tag = instr.arg1 / (4 * CACHE_SIZE);
+                    
+                    if !self.on {
+                        self.delay = MEMORY_DELAY;
+                        self.hit = false;
+                    }
 
-                    if self.data[index as usize][1] == 1 && self.data[index as usize][0] == tag  { //both valid and proper tag
+
+                    else if self.data[index as usize][1] == 1 && self.data[index as usize][0] == tag  { //both valid and proper tag
                         self.delay = CACHE_DELAY;
                         self.hit = true;
                     }
@@ -140,7 +148,12 @@ pub mod memory {
                     let mut index_i = (main_addr / 4) % CACHE_SIZE;
                     let mut tag_i = main_addr / (4 * CACHE_SIZE);
                     
-                    if self.data[index_i as usize][1] == 1 && self.data[index_i as usize][0] == tag_i  { //both valid and proper tag
+                    if !self.on {
+                        self.delay = 2 * MEMORY_DELAY;
+                        self.hit = false;
+                    }
+
+                    else if self.data[index_i as usize][1] == 1 && self.data[index_i as usize][0] == tag_i  { //both valid and proper tag
                         self.delay = CACHE_DELAY; //base delay is cache to get indirect address
                     }
                     else { //else miss, 
@@ -152,11 +165,11 @@ pub mod memory {
                     let index = (addr / 4) % CACHE_SIZE; //find mapped location
                     let tag = addr / (4 * CACHE_SIZE);
 
-                    if self.data[index as usize][1] == 1 && self.data[index as usize][0] == tag  { //both valid and proper tag for actual requested data
+                    if self.data[index as usize][1] == 1 && self.data[index as usize][0] == tag  && self.on { //both valid and proper tag for actual requested data
                         self.delay = self.delay + CACHE_DELAY; //add aditional cache delay for hit
                         self.hit = true;
                     }
-                    else { //else miss, 
+                    else if self.on { //else miss, 
                         self.delay = self.delay + MEMORY_DELAY;  //add aditional memory delay for miss
                         self.hit = false;
                     }
@@ -181,7 +194,12 @@ pub mod memory {
                     let mut index_i = (main_addr / 4) % CACHE_SIZE;
                     let mut tag_i = main_addr / (4 * CACHE_SIZE);
 
-                    if self.data[index_i as usize][1] == 1 && self.data[index_i as usize][0] == tag_i  { //both valid and proper tag
+                    if !self.on {
+                        self.delay = MEMORY_DELAY;
+                        self.hit = false;
+                    }
+
+                    else if self.data[index_i as usize][1] == 1 && self.data[index_i as usize][0] == tag_i  { //both valid and proper tag
                         self.delay = CACHE_DELAY; //base delay is cache to get indirect address
                     }
                     else { //else miss, 
@@ -212,10 +230,17 @@ pub mod memory {
 
                 if self.counter == self.delay { //if counter reached delay this cycle
                     //if LDR, simply return data
-                    
+                    //TODO: !self.on
                         
                     if instr.opcode == LDR_D as i32  { //if register direct
-                        if self.hit {
+                        if !self.on {
+                            let index = instr.arg1 / 4; 
+                            let offset = instr.arg1 % 4;
+                            return self.finish_instruction(index, offset);
+
+                        }
+
+                        else if self.hit {
                                 let index = (instr.arg1 / 4)  % CACHE_SIZE; //map address with offset to cache index
                             //self.counter = 0;
                             //self.servicing = Devices::Free;
@@ -239,7 +264,16 @@ pub mod memory {
                     }
                     
                     else if instr.opcode == LDR_I as i32  { //if indirect
-                        if self.hit {
+                        if !self.on {
+                            let main_index = instr.arg1 / 4; 
+                            let main_offset = instr.arg1 % 4;
+                            let addr = self.main_memory[(main_index / 4) as usize][(main_offset % 4) as usize];
+
+                            return self.finish_instruction(addr / 4, addr % 4);
+
+                        }
+
+                        else if self.hit {
                             let main_addr = instr.arg1; //get address from memory, delay already accounted for if any
                             let addr = self.main_memory[(main_addr / 4) as usize][(main_addr % 4) as usize]; 
                             let index = (addr / 4) % CACHE_SIZE;
@@ -271,9 +305,15 @@ pub mod memory {
 
                         
                     else if instr.opcode == STR_D as i32 { //assumes that memory and cache are synched
+                            
                             //if register direct
                             let addr = instr.arg2;
                             let index = (addr / 4) % CACHE_SIZE;
+                            
+                            if !self.on { //just update and return
+                                self.main_memory[(addr / 4) as usize][(addr % 4) as usize] = instr.arg1;
+                                return self.finish_instruction(addr / 4, addr % 4);
+                            }
 
                             //let mut wthrough_addr = index << CACHE_SIZE.ilog2(); //find real memory address of currently stored data by using index and tag
                             //wthrough_addr = wthrough_addr | index;
@@ -297,13 +337,18 @@ pub mod memory {
                             self.data[index as usize][1] = 1; //set valid bit
 
                            
-                            return self.finish_instruction(index, addr % 4);
+                            return self.finish_instruction(addr / 4, addr % 4);
                     }
 
                     else if instr.opcode == STR_I as i32 {
                             let main_addr = instr.arg2;
                             let addr = self.main_memory[(main_addr / 4) as usize][(main_addr % 4) as usize]; //find address in the memory cell specified by the register and add offset
                             let index = (addr / 4) % CACHE_SIZE; //find mapped location
+
+                            if !self.on { //just update and return
+                                self.main_memory[(addr / 4) as usize][(addr % 4) as usize] = instr.arg1;
+                                return self.finish_instruction(addr / 4, addr % 4);
+                            }
 
                             let tag = addr / (CACHE_SIZE * 4);
                             
@@ -351,7 +396,9 @@ pub mod memory {
         fn finish_instruction(&mut self, index: i32, offset: i32) -> ReturnVal {
             self.counter = 0;
             self.servicing = Devices::Free;
-                            
+            if !self.on {
+                return ReturnVal::Data(self.main_memory[index as usize][offset as usize]);
+            }
             return ReturnVal::Data(self.data[index as usize][(offset + 3) as usize]); //just something that isn't wait
         }
 
@@ -361,6 +408,10 @@ pub mod memory {
 
         pub fn get_memory(&self, addr: i32) -> [i32; 4] {
             return self.main_memory[(addr / 4) as usize];
+        }
+
+        pub fn switch(&mut self, val: bool) {
+            self.on = val;
         }
         
     
