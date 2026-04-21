@@ -48,7 +48,7 @@ pub mod opcode {
     pub const JG_D: u32 = 37;
     pub const JG_I: u32 = 38;
     pub const JG_PC: u32 = 39;
-    pub const REG: u32 = 40;
+    pub const RET: u32 = 40;
 
     //memory - handled by memory and writeback stages
 
