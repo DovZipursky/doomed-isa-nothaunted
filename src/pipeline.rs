@@ -1,7 +1,7 @@
 pub mod pipeline {
     use doomed_isa::Memory::memory::GRAPHICS_OFFSET;
 
-    use crate::{instruction::{self, instruction::{Devices, Instruction, InstructionType}}, memory::{self, memory::{Cache, MEMORY_SIZE, Registers, ReturnVal}}, opcode::opcode::{ADD_RI, ADD_RR, CMP_RI, CMP_RR, FDR, FTR, GDR_D, GDR_I, GTR_D, GTR_I, HALT, JE_D, JE_I, JG_D, JG_I, JL_D, JL_I, JL_PC, JMP_D, JMP_I, JMP_PC, LDR_D, LDR_I, LDR_PC, POP, PSH, RET, STR_D, STR_I, STR_PC}};
+    use crate::{instruction::{self, instruction::{Devices, Instruction, InstructionType}}, memory::{self, memory::{Cache, MEMORY_SIZE, Registers, ReturnVal}}, opcode::opcode::{ADD_RI, ADD_RR, CMP_RI, CMP_RR, FDR, FTR, GDR_D, GDR_I, GDR_PC, GTR_D, GTR_I, GTR_PC, HALT, JE_D, JE_I, JE_PC, JG_D, JG_I, JG_PC, JL_D, JL_I, JL_PC, JMP_D, JMP_I, JMP_PC, LDR_D, LDR_I, LDR_PC, POP, PSH, RET, STR_D, STR_I, STR_PC}};
     use std::cell::RefCell;
     use crate::opcode::opcode;
 
@@ -153,10 +153,18 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                         reg.update_gp(32, instr.result.unwrap()); //update pc to destination
                         wb_status = InstructionType::Squashed;
                     }
-                    else if instr.opcode == JL_D as i32 || instr.opcode == JL_I as i32 || instr.opcode == JL_PC as i32 || instr.opcode == RET as i32 { //conditionals and RET
-                        wb_status = InstructionType::Squashed;
-                        reg.update_gp(32, instr.result.unwrap());
+                    else if instr.opcode == JL_D as i32 || instr.opcode == JL_I as i32 || instr.opcode == JL_PC as i32 || instr.opcode == RET as i32 
+                    || instr.opcode == JE_D as i32 || instr.opcode == JE_I as i32 || instr.opcode == JE_PC as i32 
+                    || instr.opcode == JG_D as i32 || instr.opcode == JG_I as i32 || instr.opcode == JG_PC as i32 { //conditionals and RET
+                          
+                        if instr.result.unwrap() != instr.pc { //if jump acutally jumped 
+                            reg.update_gp(32, instr.result.unwrap());
+                            wb_status = InstructionType::Squashed;
+                        }
                         
+                    }
+                    else if instr.opcode == HALT as i32 {
+                        wb_status = InstructionType::Blocked;
                     }
                     if !ctrl.status() {
                         ctrl.dec();
@@ -348,10 +356,29 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                             instr.result.replace(instr.arg1 + instr.arg2);
                         }
                         else {
-                            instr.result.replace(reg.get_pc());
+                            instr.result.replace(instr.pc);
                         }
 
                     }
+                    else if instr.opcode == JE_D as i32 || instr.opcode == JE_I as i32 || instr.opcode == JE_PC as i32 {//JL
+                        if reg.get_flags() == 0 {
+                            instr.result.replace(instr.arg1 + instr.arg2);
+                        }
+                        else {
+                            instr.result.replace(instr.pc);
+                        }
+
+                    }
+                    else if instr.opcode == JG_D as i32 || instr.opcode == JG_I as i32 || instr.opcode == JG_PC as i32 {//JL
+                        if reg.get_flags() == 1 {
+                            instr.result.replace(instr.arg1 + instr.arg2);
+                        }
+                        else {
+                            instr.result.replace(instr.pc);
+                        }
+
+                    }
+                    
                     else if instr.opcode == RET as i32 {
                         instr.result.replace(reg.get_gp(34)); //return address
                     }
@@ -381,13 +408,13 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                     else if instr.opcode == STR_D as i32 || instr.opcode == STR_I as i32 || instr.opcode == STR_PC as i32 {
                         instr.arg2 = instr.arg2 + instr.arg3;
                     }
-                    else if instr.opcode == GDR_D as i32 || instr.opcode == GDR_I as i32 {
+                    else if instr.opcode == GDR_D as i32 || instr.opcode == GDR_I as i32 || instr.opcode == GDR_PC as i32 {
                         let graphics_addr = (instr.arg1 + GRAPHICS_OFFSET) % (MEMORY_SIZE * 4); //mod memory size to prevent overflow
                         instr.arg1 = graphics_addr + instr.arg3;
 
                     }
 
-                    else if instr.opcode == GTR_D as i32 || instr.opcode == GTR_I as i32 {
+                    else if instr.opcode == GTR_D as i32 || instr.opcode == GTR_I as i32 || instr.opcode == GTR_PC as i32 {
                         let graphics_addr = (instr.arg2 + GRAPHICS_OFFSET) % (MEMORY_SIZE * 4);
                         instr.arg2 = graphics_addr + instr.arg3;
                     }
@@ -517,6 +544,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                 
                 //TODO
                 //add check for opcode 0 == HALT here and logic for that. 
+
                 if fetch_type == InstructionType::Stall {
                     instruction = Instruction {
                         instr_type: InstructionType::Stall,
@@ -531,6 +559,24 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                         reg3: 0,
                         result: None,
                         pc: -1
+                    };
+                    self.instruction = None;
+                    self.dec_instruction = Some(instruction);
+                }
+                else if opcode == 0 { //HALT
+                    instruction = Instruction {
+                        instr_type: InstructionType::Control,
+                        device: Devices::Decode,
+                        type_field: -1,
+                        opcode: opcode as i32,
+                        arg1: -1,
+                        arg2: -1,
+                        arg3: -1,
+                        reg1: 0,
+                        reg2: 0,
+                        reg3: 0,
+                        result: None,
+                        pc: pc
                     };
                     self.instruction = None;
                     self.dec_instruction = Some(instruction);
@@ -638,8 +684,33 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
 
 
                     }
-                    else if opcode == JMP_D || opcode == JMP_I {
-                        
+                    else if opcode == JMP_PC || opcode == JL_PC || opcode == JE_PC || opcode == JG_PC {
+                        arg1 = pc;
+                        arg2 = (((instr_binary as u32) >> REG2_SHIFT) & REG_MASK) as i32;
+
+                        if !reg.is_pending(arg2 as usize) {
+                            instruction = Instruction {
+                                instr_type: instr_type,
+                                device: Devices::Decode,
+                                type_field: type_field as i32,
+                                opcode: opcode as i32,
+                                arg1: arg1,
+                                arg2: arg2,
+                                arg3: 0,
+                                reg1: 0,
+                                reg2: 0,
+                                reg3: 0,
+                                result: result,
+                                pc: pc
+                            };
+                            self.instruction = None;
+                            self.dec_instruction = Some(instruction);
+
+                        }
+
+                        else {
+                            dec_status = InstructionType::Blocked;
+                        }
                     }
                     else if opcode == CMP_RI { //CMP
                        
@@ -757,8 +828,8 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                             self.dec_instruction = Some(instruction);
 
                     }
-                    else if opcode == LDR_PC {
-                        arg1 = pc;
+                    else if opcode == LDR_PC || opcode == GDR_PC {
+                        arg1 = 32;
                         arg2 = (((instr_binary as u32) >> REG2_SHIFT) & REG_MASK) as i32;
                         arg3 = ((instr_binary as u32 >> IMMEDIATE3_SHIFT) & IMMEDIATE_MASK) as i32;
 
@@ -780,9 +851,9 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                             self.dec_instruction = Some(instruction);
 
                     }
-                    else if opcode == STR_PC {
+                    else if opcode == STR_PC || opcode == GTR_PC {
                         arg1 = (((instr_binary as u32) >> REG1_SHIFT) & REG_MASK) as i32;
-                        arg2 = pc;
+                        arg2 = 32;
                         arg3 = ((instr_binary as u32 >> IMMEDIATE3_SHIFT) & IMMEDIATE_MASK) as i32;
 
                         if !reg.is_pending(arg1 as usize) {
@@ -937,6 +1008,11 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
 
             if self.dec_instruction.is_some() && exec_status != InstructionType::Blocked {
                 let Some(mut instr) = self.dec_instruction.take() else { return None };
+                if instr.opcode == HALT as i32 {
+                    self.dec_instruction = None;
+                    //self.instruction = None;
+                    return Some(instr); //pass it on
+                }
                 if instr.instr_type == InstructionType::ALU {
                     if instr.opcode == ADD_RR as i32 {
                         if  !reg.is_pending(instr.arg1 as usize) && !reg.is_pending(instr.arg2 as usize) {
@@ -1042,6 +1118,46 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                                 instr.reg2 = reg2;
                                 instr.reg3 = reg3;
                                 if instr.opcode == JMP_D as i32 || instr.opcode == JMP_I as i32 {
+                                    reg.update_pending(34, true); //set lr to pending to prevent weird stuff
+                                }
+                                self.dec_instruction = None;
+                                //self.instruction = None;
+                                return Some(instr);
+                        }
+                        else {
+                                self.dec_instruction = Some(instr);
+                                return Some(Instruction {
+                                instr_type: InstructionType::Stall,
+                                device: Devices::Decode,
+                                type_field: -1,
+                                opcode: -1,
+                                arg1: -1,
+                                arg2: -1,
+                                arg3: -1,
+                                reg1: 0,
+                                reg2: 0,
+                                reg3: 0,
+                                result: None,
+                                pc: -1
+    
+                            });
+                        }
+                    }
+                    else if instr.opcode == JMP_PC as i32 || instr.opcode == JL_PC as i32 || instr.opcode == JE_PC as i32 || instr.opcode == JG_PC as i32 {
+                        if !reg.is_pending(instr.arg2 as usize) {
+                                let reg1 = 0;
+                                let reg2 = instr.arg2;
+                                let reg3 = -1;
+                                instr.arg1 = instr.pc;
+                                
+                                if instr.type_field == 1 { //if offset
+                                    instr.arg2 = reg.get_gp(instr.arg2 as usize);
+                                }
+                                
+                                instr.reg1 = reg1;
+                                instr.reg2 = reg2;
+                                instr.reg3 = reg3;
+                                if instr.opcode == JMP_PC as i32 {
                                     reg.update_pending(34, true); //set lr to pending to prevent weird stuff
                                 }
                                 self.dec_instruction = None;
@@ -1186,6 +1302,37 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
 
                             instr.arg1 = reg.get_gp(instr.arg1 as usize); //put register data in instruction
                             instr.arg2 = reg.get_gp(instr.arg2 as usize); //get dst address
+
+                            instr.reg1 = reg1;
+                            instr.reg2 = reg2;
+                            instr.reg3 = reg3;
+                            //self.instruction = None;
+                            self.dec_instruction = None;
+                            return Some(instr);
+                        }
+                        else if instr.opcode == LDR_PC as i32 || instr.opcode == GDR_PC as i32 {
+                            reg.update_pending(instr.arg2 as usize, true); //set dst addr to pending so it isn't overwritten
+                            let reg1 = instr.arg1; 
+                            let reg2 = instr.arg2;
+                            let reg3 = instr.arg3;
+                            
+                            instr.arg1 = instr.pc; //get use own pc as addr base
+
+                            instr.reg1 = reg1;
+                            instr.reg2 = reg2;
+                            instr.reg3 = reg3;
+                            //self.instruction = None;
+                            self.dec_instruction = None;
+                            return Some(instr);
+                        }
+                        else if instr.opcode == STR_PC as i32 || instr.opcode == GTR_PC as i32 {
+                            //no write, so no update pending
+                            let reg1 = instr.arg1; 
+                            let reg2 = instr.arg2;
+                            let reg3 = instr.arg3;
+
+                            instr.arg1 = reg.get_gp(instr.arg1 as usize); //put register data in instruction
+                            instr.arg2 =instr.pc; //use pc as base for dst
 
                             instr.reg1 = reg1;
                             instr.reg2 = reg2;
