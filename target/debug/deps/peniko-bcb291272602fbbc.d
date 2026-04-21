@@ -1,0 +1,11 @@
+/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted/target/debug/deps/peniko-bcb291272602fbbc.d: /Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/peniko-0.6.0/src/lib.rs /Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/peniko-0.6.0/src/blend.rs /Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/peniko-0.6.0/src/brush.rs /Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/peniko-0.6.0/src/gradient.rs /Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/peniko-0.6.0/src/image.rs /Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/peniko-0.6.0/src/style.rs /Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/peniko-0.6.0/src/impl_bytemuck.rs
+
+/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted/target/debug/deps/libpeniko-bcb291272602fbbc.rmeta: /Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/peniko-0.6.0/src/lib.rs /Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/peniko-0.6.0/src/blend.rs /Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/peniko-0.6.0/src/brush.rs /Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/peniko-0.6.0/src/gradient.rs /Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/peniko-0.6.0/src/image.rs /Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/peniko-0.6.0/src/style.rs /Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/peniko-0.6.0/src/impl_bytemuck.rs
+
+/Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/peniko-0.6.0/src/lib.rs:
+/Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/peniko-0.6.0/src/blend.rs:
+/Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/peniko-0.6.0/src/brush.rs:
+/Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/peniko-0.6.0/src/gradient.rs:
+/Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/peniko-0.6.0/src/image.rs:
+/Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/peniko-0.6.0/src/style.rs:
+/Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/peniko-0.6.0/src/impl_bytemuck.rs:

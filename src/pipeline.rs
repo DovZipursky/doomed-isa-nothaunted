@@ -1,7 +1,7 @@
 pub mod pipeline {
     use doomed_isa::Memory::memory::GRAPHICS_OFFSET;
 
-    use crate::{instruction::{self, instruction::{Devices, Instruction, InstructionType}}, memory::{self, memory::{Cache, MEMORY_SIZE, Registers, ReturnVal}}, opcode::opcode::{ADD_RI, ADD_RR, CMP_RI, CMP_RR, FDR, FTR, GDR_D, GDR_I, GTR_D, GTR_I, HALT, JE_D, JE_I, JG_D, JG_I, JL_D, JL_I, JL_PC, JMP_D, JMP_I, JMP_PC, LDR_D, LDR_I, LDR_PC, POP, PSH, STR_D, STR_I, STR_PC}};
+    use crate::{instruction::{self, instruction::{Devices, Instruction, InstructionType}}, memory::{self, memory::{Cache, MEMORY_SIZE, Registers, ReturnVal}}, opcode::opcode::{ADD_RI, ADD_RR, CMP_RI, CMP_RR, FDR, FTR, GDR_D, GDR_I, GTR_D, GTR_I, HALT, JE_D, JE_I, JG_D, JG_I, JL_D, JL_I, JL_PC, JMP_D, JMP_I, JMP_PC, LDR_D, LDR_I, LDR_PC, POP, PSH, RET, STR_D, STR_I, STR_PC}};
     use std::cell::RefCell;
     use crate::opcode::opcode;
 
@@ -148,10 +148,12 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                 else if instr.instr_type == InstructionType::Control { //if it is a control flow instruction
                     //assume result is the update to PC
                     if instr.opcode == JMP_D as i32  || instr.opcode == JMP_I as i32 || instr.opcode == JMP_PC as i32  { //JMP
-                        reg.update_gp(32, instr.result.unwrap());
+                        reg.update_pending(34, false); //unpend linked register
+                        reg.update_gp(34,instr.pc + 1); //update link register before jump
+                        reg.update_gp(32, instr.result.unwrap()); //update pc to destination
                         wb_status = InstructionType::Squashed;
                     }
-                    else if instr.opcode == JL_D as i32 || instr.opcode == JL_I as i32 || instr.opcode == JL_PC as i32 { //JL
+                    else if instr.opcode == JL_D as i32 || instr.opcode == JL_I as i32 || instr.opcode == JL_PC as i32 || instr.opcode == RET as i32 { //conditionals and RET
                         wb_status = InstructionType::Squashed;
                         reg.update_gp(32, instr.result.unwrap());
                         
@@ -350,6 +352,10 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                         }
 
                     }
+                    else if instr.opcode == RET as i32 {
+                        instr.result.replace(reg.get_gp(34)); //return address
+                    }
+
                     else if  instr.opcode == CMP_RI as i32 || instr.opcode == CMP_RR as i32 { //CMP
                         if  instr.arg1 >  instr.arg2 {
                             reg.update_flags(1);
@@ -632,6 +638,9 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
 
 
                     }
+                    else if opcode == JMP_D || opcode == JMP_I {
+                        
+                    }
                     else if opcode == CMP_RI { //CMP
                        
                         arg1 = (((instr_binary as u32) >> REG1_SHIFT) & REG_MASK) as i32;
@@ -693,6 +702,30 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                             dec_status = InstructionType::Blocked;
                         }
 
+                    }
+
+                    else if opcode == RET {
+                        //return sets is a special jump effectively, sets the pc to lr
+                        arg1 = 0;
+                        arg2 = 0;
+                        arg3 = 0;
+
+                        instruction = Instruction {
+                                instr_type: instr_type,
+                                device: Devices::Decode,
+                                type_field: type_field as i32,
+                                opcode: opcode as i32,
+                                arg1: arg1,
+                                arg2: arg2,
+                                arg3: arg3,
+                                reg1: 0,
+                                reg2: 0,
+                                reg3: 0,
+                                result: result,
+                                pc: pc
+                            };
+                            self.instruction = None;
+                            self.dec_instruction = Some(instruction);
                     }
 
                     
@@ -1008,7 +1041,9 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                                 instr.reg1 = reg1;
                                 instr.reg2 = reg2;
                                 instr.reg3 = reg3;
-
+                                if instr.opcode == JMP_D as i32 || instr.opcode == JMP_I as i32 {
+                                    reg.update_pending(34, true); //set lr to pending to prevent weird stuff
+                                }
                                 self.dec_instruction = None;
                                 //self.instruction = None;
                                 return Some(instr);
@@ -1095,6 +1130,30 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                                     });
                                 }
 
+                            }
+                            else if instr.opcode == RET as i32 {
+                                if !reg.is_pending(34) { //if lr is not about to be written to
+                                    self.dec_instruction = None;
+                                    return Some(instr);
+                                }
+                                else {
+                                    self.dec_instruction = Some(instr);
+                                    return Some(Instruction {
+                                        instr_type: InstructionType::Stall,
+                                        device: Devices::Decode,
+                                        type_field: -1,
+                                        opcode: -1,
+                                        arg1: -1,
+                                        arg2: -1,
+                                        arg3: -1,
+                                        reg1: 0,
+                                        reg2: 0,
+                                        reg3: 0,
+                                        result: None,
+                                        pc: -1
+                                    });
+                                }
+                                
                             }
                     else {
                         //self.instruction = None;

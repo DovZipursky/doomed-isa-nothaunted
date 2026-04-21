@@ -11,7 +11,7 @@ use doomed_isa::opcode::opcode::RS_RR;
 
 use crate::{instruction::instruction::{Devices, Instruction, InstructionType}, 
 memory::memory::{Cache, Registers, ReturnVal}, 
-opcode::opcode::{ADD_RI, AND_RI, CMP_RI, CMP_RR, DIV_RI, FDR, FTR, GTR_D, JL_D, LDR_D, LDR_I, LS_RI, LSL_RI, LSR_RI, MOD_RI, MUL_RI, OR_RI, POP, PSH, RS_RI, STR_D, STR_I, SUB_RI, XOR_RI}, pipeline::pipeline::Controler};
+opcode::opcode::{ADD_RI, AND_RI, CMP_RI, CMP_RR, DIV_RI, FDR, FTR, GTR_D, JL_D, JMP_D, LDR_D, LDR_I, LS_RI, LSL_RI, LSR_RI, MOD_RI, MUL_RI, OR_RI, POP, PSH, RET, RS_RI, STR_D, STR_I, SUB_RI, XOR_RI}, pipeline::pipeline::Controler};
 use crate::{pipeline::pipeline::{Decode, Memory, Fetch, Execute, Writeback}};
 
 use std::cell::RefCell;
@@ -95,9 +95,65 @@ fn main() {
 
     //test_graphics_instructions();
 
-    test_push_pop();
+    //test_push_pop();
     
+    test_jmp_ret();
     
+}
+
+pub fn test_jmp_ret() {
+    let i0 = instr_fields_to_decimal(0, ADD_RI, 2, 5, 2, InstructionType::ALU);
+    let i1 = instr_fields_to_decimal(0, ADD_RI, 0, 1, 0, InstructionType::ALU);
+    let i2 = instr_fields_to_decimal(0, JMP_D, 2, 0, 0, InstructionType::Control);
+    let i3 = instr_fields_to_decimal(0, PSH, 0, 0, 0, InstructionType::Memory); // 0 second arg bc decode autofills sp index
+    let i4 = instr_fields_to_decimal(0, ADD_RI, 2, 5, 0, InstructionType::ALU);
+    let i5 = instr_fields_to_decimal(0, POP, 0, 0, 0, InstructionType::Memory); //similar here for first arg
+    let i6 = instr_fields_to_decimal(0, RET, 0, 0, 0, InstructionType::Control);
+
+    create_binary_file("src/programs/graphics-test.bin", &[i0, i1, i2, i3, i4, i5, i6]);
+    
+    let mut reg = Registers::new();
+    //reg.update_gp(1, 600);
+    let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
+    cache.load_memory_from_file("src/programs/graphics-test.bin".to_string());
+
+    let mut ctrl = Controler::new();
+    //ctrl.switch(true);
+
+    let cache_ref = &mut cache;
+    let reg_ref = &mut reg;
+    let ctrl_ref = &mut ctrl;
+    let mut fetch = Fetch::new();
+    let mut decode = Decode::new(fetch);
+    let mut excecute = Execute::new(decode);
+    let mut memory = Memory::new( excecute);
+    let mut writeback = Writeback::new( memory);
+
+    let mut wb_ret: Option<Instruction> = None;
+
+    while wb_ret.is_none() || (wb_ret.is_some() && wb_ret.unwrap().instr_type != InstructionType::NOOP) {
+        println!("{}", "  ");
+        println!("{}", "Writeback State: ");
+        println!("{}", writeback.state());
+        println!("{}", "  ");
+        println!("{}", "Memory State: ");
+        println!("{}", writeback.mem_stage.state());
+        println!("{}", "  ");
+        println!("{}", "Excecute State: ");
+        println!("{}", writeback.mem_stage.exec_stage.state());
+        println!("{}", "  ");
+        println!("{}", "Decode State: ");
+        let (cur, dec):(String, String) = writeback.mem_stage.exec_stage.dec_stage.state();
+        println!("{} \n {}", cur, dec);
+        println!("{}", "  ");
+        println!("{}", "Fetch State: ");
+        let (cur_i, pc) = writeback.mem_stage.exec_stage.dec_stage.fetch_stage.state();
+        println!("{} \n {}", cur_i, pc);
+        println!("{}", "  ");
+        wb_ret = writeback.call(reg_ref, cache_ref, ctrl_ref);
+    }
+
+    println!("made it");
 }
 
 pub fn test_push_pop() {
@@ -717,7 +773,7 @@ pub fn instr_fields_to_decimal(type_field: u32, opcode: u32, arg1: u32, arg2: u3
                 | (arg2 << REG2_SHIFT)
                 | (arg3 << REG3_SHIFT);
             }
-        else { //some jump
+        else { //some jump or RET
             return (type_field << TYPE_SHIFT)
                 | (opcode << OPCODE_SHIFT)
                 | (arg1 << REG1_SHIFT)
