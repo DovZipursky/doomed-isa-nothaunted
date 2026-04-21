@@ -9,6 +9,10 @@ use std::{collections::btree_map::Range, io, ptr::null};
 
 use doomed_isa::opcode::opcode::RS_RR;
 
+use eframe::App;
+use egui::{ScrollArea, util::id_type_map};
+use egui_extras::{Column, TableBuilder};
+
 use crate::{instruction::instruction::{Devices, Instruction, InstructionType}, 
 memory::memory::{Cache, Registers, ReturnVal}, 
 opcode::opcode::{ADD_RI, AND_RI, CMP_RI, CMP_RR, DIV_RI, JL_D, LDR_D, LDR_I, LS_RI, LSL_RI, LSR_RI, MOD_RI, MUL_RI, OR_RI, RS_RI, STR_D, STR_I, SUB_RI, XOR_RI}, pipeline::pipeline::Controler};
@@ -39,57 +43,57 @@ const OPCODE_MASK: u32 = 0b11_1111;
 const REG_MASK: u32 = 0b1_1111;
 const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
 
-fn main() {
+// fn main() {
 
-    let type_field:u32 = 0;
-    let opcode = ADD_RI;
-    let reg1 = 3;
-    let reg2 = 0;
-    let reg3 = 3;
-    let imm2: u32 = 1;
-    let imm3: u32 = 0;
+//     let type_field:u32 = 0;
+//     let opcode = ADD_RI;
+//     let reg1 = 3;
+//     let reg2 = 0;
+//     let reg3 = 3;
+//     let imm2: u32 = 1;
+//     let imm3: u32 = 0;
 
-     let instr_binary = (type_field << TYPE_SHIFT)
-                | (opcode << OPCODE_SHIFT)
-                | (reg1 << REG1_SHIFT)
-                | (imm2 << IMMEDIATE2_SHIFT)
-                | (reg3 << POST_REG_SHIFT);
+//      let instr_binary = (type_field << TYPE_SHIFT)
+//                 | (opcode << OPCODE_SHIFT)
+//                 | (reg1 << REG1_SHIFT)
+//                 | (imm2 << IMMEDIATE2_SHIFT)
+//                 | (reg3 << POST_REG_SHIFT);
 
-    println!("{}", instr_binary.to_string());
+//     println!("{}", instr_binary.to_string());
 
-    let type_field = ((instr_binary >> TYPE_SHIFT) & TYPE_MASK) as u8;
-    let opcode     = ((instr_binary >> OPCODE_SHIFT) & OPCODE_MASK) as u8;
-    let reg1       = ((instr_binary >> REG1_SHIFT) & REG_MASK) as u8;
-    let imm2       = ((instr_binary >> IMMEDIATE2_SHIFT) & IMMEDIATE_MASK) as u8;
-    let reg3       = ((instr_binary >> POST_REG_SHIFT) & REG_MASK) as u8;
+//     let type_field = ((instr_binary >> TYPE_SHIFT) & TYPE_MASK) as u8;
+//     let opcode     = ((instr_binary >> OPCODE_SHIFT) & OPCODE_MASK) as u8;
+//     let reg1       = ((instr_binary >> REG1_SHIFT) & REG_MASK) as u8;
+//     let imm2       = ((instr_binary >> IMMEDIATE2_SHIFT) & IMMEDIATE_MASK) as u8;
+//     let reg3       = ((instr_binary >> POST_REG_SHIFT) & REG_MASK) as u8;
 
-    println!("{}, {}, {}, {}, {}", type_field, opcode, reg1, imm2, reg3);
+//     println!("{}, {}, {}, {}, {}", type_field, opcode, reg1, imm2, reg3);
 
-    let index = 6 / 4;
-    let offset = 6 % 4;
+//     let index = 6 / 4;
+//     let offset = 6 % 4;
 
-    println!("{}, {}", index, offset);
+//     println!("{}, {}", index, offset);
 
-    //test_memory();
+//     //test_memory();
 
-    //test_fetch();
+//     //test_fetch();
 
-    //test_decode();
+//     //test_decode();
 
-    //test_excecute();
+//     //test_excecute();
     
-    //test_mem_stage();
+//     //test_mem_stage();
 
-    //test_writeback();
-    //test_improved_memory();
-    //test_control_flow();
+//     //test_writeback();
+//     //test_improved_memory();
+//     //test_control_flow();
 
-    //test_cache_switch();
+//     //test_cache_switch();
 
-    test_pipe_switch();
+//     test_pipe_switch();
     
     
-}
+// }
 
 pub fn test_pipe_switch() {
     //i1: LDR load from addr R3 into R1
@@ -957,3 +961,135 @@ pub fn test_memory() {
         assert_eq!(reg_ref.get_gp(2), -1); //should have stored the -1 from memory in register 2
 
     }
+
+struct Simulator {
+    cache: Cache,
+    registers: Registers,
+    filename: String,
+    writeback: Writeback
+}
+
+impl Default for Simulator {
+    fn default() -> Self {
+        let mut cache = Cache::new([[-1; 7]; 4], [[-1; 4]; 64]);
+        let mut registers = Registers::new();
+        let mut ctrl = Controler::new();
+        let cache_ref = &mut cache;
+        let reg_ref = &mut registers;
+        let ctrl_ref = &mut ctrl;
+        let filename = String::new();
+        let mut fetch_stage = Fetch::new();
+        let mut dec_stage = Decode::new(fetch_stage);
+        let mut exec_stage = Execute::new(dec_stage);
+        let mut mem_stage = Memory::new(exec_stage);
+        let mut writeback = Writeback::new(mem_stage);
+        Self {
+            cache,
+            registers,
+            filename,
+            writeback
+        }
+    }
+}
+
+
+fn main() -> eframe::Result{
+     let options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default().with_inner_size([1920.0, 1080.0]),
+        ..Default::default()
+    };
+    eframe::run_native(
+        "DOOMed Simulator",
+        options,
+        Box::new(|cc| {
+            Ok(Box::<Simulator>::default())
+        }),
+    );
+    Ok(())
+}
+
+impl eframe::App for Simulator {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
+            ui.heading("DOOMed ISA Simulator");
+            ui.horizontal(|ui| {
+                let path = ui.label("File path: ");
+                ui.text_edit_singleline(&mut self.filename);
+                ui.button("Load").clicked().then(|| {self.cache.load_memory_from_file(self.filename.clone());});
+                ui.button("Run");
+            });
+
+            ui.separator();
+            
+            ui.columns(3, |columns| { 
+                columns[0].label("Registers");
+                ScrollArea::vertical().id_salt("first area").show(&mut columns[0], |ui| {
+                    TableBuilder::new(ui)
+                    .striped(true)
+                    .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                    .id_salt("first")
+                    .column(Column::auto())
+                    .column(Column::remainder())
+                    .header(20.0, |mut header| {
+                        header.col(|ui| { ui.label("Register"); });
+                        header.col(|ui| { ui.label("Value"); });
+                    })
+                    .body(|mut body| {
+                        for i in 0..16 {
+                            body.row(20.0, |mut row|{
+                                row.col(|ui| { ui.label(format!("{:?}", vec!["List", "of", "Registers"])); });
+                                row.col(|ui| { ui.label("Value"); });
+                            });
+                        }
+                    });
+                });
+
+                columns[1].label("Memory");
+                ScrollArea::vertical().id_salt("second area").show(&mut columns[1], |ui| {
+                    TableBuilder::new(ui)
+                    .striped(true)
+                    .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                    .id_salt("second")
+                    .column(Column::auto())
+                    .column(Column::remainder())
+                    .header(20.0, |mut header| {
+                        header.col(|ui| { ui.label("Address"); });
+                        header.col(|ui| { ui.label("Value"); });
+                    })
+                    .body(|mut body| {
+                        for i in 0..128 {
+                            body.row(20.0, |mut row| {
+                                row.col(|ui| { ui.label(format!("{:?}", vec!["List", "of", "Memory", "Addresses"])); });
+                                row.col(|ui| { ui.label("Value"); });
+                            });
+                        }
+                    });
+                });
+
+                columns[2].label("Cache");
+                ScrollArea::vertical().id_salt("third area").show(&mut columns[2], |ui| {
+                    TableBuilder::new(ui)
+                    .striped(true)
+                    .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                    .id_salt("third")
+                    .column(Column::auto())
+                    .column(Column::remainder())
+                    .header(20.0, |mut header| {
+                        header.col(|ui| { ui.label("Line"); });
+                        header.col(|ui| { ui.label("Value"); });
+                    })
+                    .body(|mut body| {
+                        for i in 0..64 {
+                            body.row(20.0, |mut row| {
+                                row.col(|ui| { ui.label(format!("{:?}", vec!["List", "of", "Cache", "Lines"])); });
+                                row.col(|ui| { ui.label("Value"); });
+                            });
+                        }
+                    });
+                });
+
+                // Add pipeline state display
+            });
+        });
+    }
+}
