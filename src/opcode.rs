@@ -34,9 +34,9 @@ pub mod opcode {
     //D = register direct
     //I = register indirect 
     //PC = PC relative
-    pub const JMP_D: u32 = 26;
+    pub const JMP_D: u32 = 26; 
     pub const JMP_I: u32 = 27;
-    pub const JMP_PC: u32 = 28;
+    pub const JMP_PC: u32 = 28; //JMPS save lr for return
     pub const CMP_RR: u32 = 29;
     pub const CMP_RI: u32 = 30;
     pub const JE_D: u32 = 31;
@@ -48,27 +48,24 @@ pub mod opcode {
     pub const JG_D: u32 = 37;
     pub const JG_I: u32 = 38;
     pub const JG_PC: u32 = 39;
+    pub const REG: u32 = 40;
 
     //memory - handled by memory and writeback stages
 
-    pub const LDR_D: u32 = 40;
-    pub const LDR_I: u32 = 41;
-    pub const LDR_PC: u32 = 42;
-    pub const STR_D: u32 = 43;
-    pub const STR_I: u32 = 44;
-    pub const STR_PC: u32 = 45;
-    pub const GDR_D: u32 = 46;
-    pub const GDR_I: u32 = 47;
-    pub const GDR_PC: u32 = 48;
-    pub const GTR_D: u32 = 49;
-    pub const GTR_I: u32 = 50;
-    pub const GTR_PC: u32 = 51;
-    pub const PSH_D: u32 = 52;
-    pub const PSH_I: u32 = 53;
-    pub const PSH_PC: u32 = 54;
-    pub const POP_D: u32 = 55;
-    pub const POP_I: u32 = 56;
-    pub const POP_PC: u32 = 57;
+    pub const LDR_D: u32 = 41;
+    pub const LDR_I: u32 = 42;
+    pub const LDR_PC: u32 = 43;
+    pub const STR_D: u32 = 44;
+    pub const STR_I: u32 = 45;
+    pub const STR_PC: u32 = 46;
+    pub const GDR_D: u32 = 47;
+    pub const GDR_I: u32 = 48;
+    pub const GDR_PC: u32 = 49;
+    pub const GTR_D: u32 = 50;
+    pub const GTR_I: u32 = 51;
+    pub const GTR_PC: u32 = 52;
+    pub const PSH: u32 = 53;
+    pub const POP: u32 = 55;
     pub const FDR: u32 = 58; //frame load, pulls graphics memory into frame buffer
     pub const FTR: u32 = 59; //frame store, puts frame buffer into graphics memory
 

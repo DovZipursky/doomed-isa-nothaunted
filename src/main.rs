@@ -11,7 +11,7 @@ use doomed_isa::opcode::opcode::RS_RR;
 
 use crate::{instruction::instruction::{Devices, Instruction, InstructionType}, 
 memory::memory::{Cache, Registers, ReturnVal}, 
-opcode::opcode::{ADD_RI, AND_RI, CMP_RI, CMP_RR, DIV_RI, FDR, FTR, GTR_D, JL_D, LDR_D, LDR_I, LS_RI, LSL_RI, LSR_RI, MOD_RI, MUL_RI, OR_RI, RS_RI, STR_D, STR_I, SUB_RI, XOR_RI}, pipeline::pipeline::Controler};
+opcode::opcode::{ADD_RI, AND_RI, CMP_RI, CMP_RR, DIV_RI, FDR, FTR, GTR_D, JL_D, LDR_D, LDR_I, LS_RI, LSL_RI, LSR_RI, MOD_RI, MUL_RI, OR_RI, POP, PSH, RS_RI, STR_D, STR_I, SUB_RI, XOR_RI}, pipeline::pipeline::Controler};
 use crate::{pipeline::pipeline::{Decode, Memory, Fetch, Execute, Writeback}};
 
 use std::cell::RefCell;
@@ -81,16 +81,81 @@ fn main() {
     //test_mem_stage();
 
     //test_writeback();
+    
+    //TESTS ABOVE HERE WERE DESIGNED WHEN THE CACHE AND MEMORY DID NOT HAVE FULL LINES
+    //RESULTS ARE NOT ACCURATE TO CURRENT FUNCTIONALITY
+
     //test_improved_memory();
+    
     //test_control_flow();
 
     //test_cache_switch();
 
     //test_pipe_switch();
 
-    test_graphics_instructions();
+    //test_graphics_instructions();
+
+    test_push_pop();
     
     
+}
+
+pub fn test_push_pop() {
+
+    let i0 = instr_fields_to_decimal(0, ADD_RI, 2, 1, 2, InstructionType::ALU);
+    let i1 = instr_fields_to_decimal(0, ADD_RI, 0, 1, 0, InstructionType::ALU);
+    let i2 = instr_fields_to_decimal(0, PSH, 2, 0, 0, InstructionType::Memory);
+    let i3 = instr_fields_to_decimal(0, PSH, 0, 0, 0, InstructionType::Memory); // 0 second arg bc decode autofills sp index
+    let i4 = instr_fields_to_decimal(0, ADD_RI, 2, 5, 0, InstructionType::ALU);
+    let i5 = instr_fields_to_decimal(0, POP, 0, 0, 0, InstructionType::Memory); //similar here for first arg
+    let i6 = instr_fields_to_decimal(0, POP, 0, 2, 0, InstructionType::Memory);
+
+    create_binary_file("src/programs/graphics-test.bin", &[i0, i1, i2, i3, i4, i5, i6]);
+    
+    let mut reg = Registers::new();
+    //reg.update_gp(1, 600);
+    let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
+    cache.load_memory_from_file("src/programs/graphics-test.bin".to_string());
+
+    let mut ctrl = Controler::new();
+    //ctrl.switch(true);
+
+    let cache_ref = &mut cache;
+    let reg_ref = &mut reg;
+    let ctrl_ref = &mut ctrl;
+    let mut fetch = Fetch::new();
+    let mut decode = Decode::new(fetch);
+    let mut excecute = Execute::new(decode);
+    let mut memory = Memory::new( excecute);
+    let mut writeback = Writeback::new( memory);
+
+    let mut wb_ret: Option<Instruction> = None;
+
+    while wb_ret.is_none() || (wb_ret.is_some() && wb_ret.unwrap().instr_type != InstructionType::NOOP) {
+        println!("{}", "  ");
+        println!("{}", "Writeback State: ");
+        println!("{}", writeback.state());
+        println!("{}", "  ");
+        println!("{}", "Memory State: ");
+        println!("{}", writeback.mem_stage.state());
+        println!("{}", "  ");
+        println!("{}", "Excecute State: ");
+        println!("{}", writeback.mem_stage.exec_stage.state());
+        println!("{}", "  ");
+        println!("{}", "Decode State: ");
+        let (cur, dec):(String, String) = writeback.mem_stage.exec_stage.dec_stage.state();
+        println!("{} \n {}", cur, dec);
+        println!("{}", "  ");
+        println!("{}", "Fetch State: ");
+        let (cur_i, pc) = writeback.mem_stage.exec_stage.dec_stage.fetch_stage.state();
+        println!("{} \n {}", cur_i, pc);
+        println!("{}", "  ");
+        wb_ret = writeback.call(reg_ref, cache_ref, ctrl_ref);
+    }
+
+    println!("made it");
+    //appears to work fine! remember to save your registers
+
 }
 
 pub fn test_graphics_instructions() {
@@ -156,8 +221,7 @@ pub fn test_graphics_instructions() {
         println!("{}", "  ");
         wb_ret = writeback.call(reg_ref, cache_ref, ctrl_ref);
     }
-    //current bug, can't reuse arg slots for register values without conflict with something. can't fix because memory relies on same pointer for cache delay to work
-    //add register attributes to instruction struct to save info during decode stage for writeback, revert modifications to excecute and memory
+
     println!("made it");
 
     let mut cache_ret = ReturnVal::Wait(true);
@@ -374,11 +438,13 @@ pub fn test_cache_switch() {
     ret = cache.call(str_i);
     ret = cache.call(str_i);
 
+
     println!("{}", cache.get_memory(4)[0].to_string());
     println!("{}", cache.get_memory(4)[1].to_string());
     println!("{}", cache.get_memory(4)[2].to_string());
     println!("{}", cache.get_memory(4)[3].to_string());
 
+   
     ret = cache.call(load_d);
     ret = cache.call(load_d);
     ret = cache.call(load_d);
