@@ -2,14 +2,18 @@ pub mod memory {
     use std::{collections::LinkedList, fs};
 
     use crate::instruction::instruction::{Devices, Instruction};
-    use crate::opcode::opcode::{LDR_D, LDR_I, STR_D, STR_I};
+    use crate::opcode::opcode::{FDR, FTR, GDR_D, GDR_I, GTR_D, GTR_I, LDR_D, LDR_I, STR_D, STR_I};
 
-    const CACHE_SIZE: i32 = 4;
-    const MEMORY_SIZE: i32 = 64;
-    const CACHE_DELAY: i32 = 0;
+    const CACHE_SIZE: i32 = 250;
+    pub const MEMORY_SIZE: i32 = 1000;
+    pub const GRAPHICS_OFFSET: i32 = ((FRAME_WIDTH * FRAME_HEIGHT) / 32); //includes the size given by line width
+    
+    const CACHE_DELAY: i32 = 0;                     
     const MEMORY_DELAY: i32 = 3;
     const TAG_LENGTH: u32 = 32 - CACHE_SIZE.ilog2();
     const INDEX_LENGTH: u32 = CACHE_SIZE.ilog2();
+    const FRAME_WIDTH: i32 = 320;
+    const FRAME_HEIGHT: i32 = 240;
     
     #[derive(Debug)]
     #[derive(Eq, PartialEq)]
@@ -77,6 +81,7 @@ pub mod memory {
     pub struct Cache {
         data: [[i32; 7]; CACHE_SIZE as usize],
         main_memory: [[i32; 4]; MEMORY_SIZE as usize],
+        frame_buffer: [[i32; 4]; (GRAPHICS_OFFSET / 4) as usize],
         delay: i32,
         counter: i32,
         servicing: Devices,
@@ -93,9 +98,10 @@ pub mod memory {
                                             //data[index][1] = the valid bit, which indicates whether the cache line contains valid data or not
                                             //data[index][2] = dirty bit, whether the cache line has been written to and not evicted
                                             //data[index][3...6] = the data in the line, 4 words of 32 bits
-                main_memory: main_memory, //address of element: main_memory[addr/4 % MEMORY_SIZE * 4][addr % 4];
-                delay: CACHE_DELAY,
-                counter: 0,
+                main_memory: main_memory, //address of element: main_memory[addr/4][addr % 4]
+                frame_buffer: [[-1; 4]; (GRAPHICS_OFFSET / 4) as usize],
+                delay: CACHE_DELAY,         
+                counter: 0,                 
                 servicing: Devices::Free,
                 instruction: None, 
                 hit: false,
@@ -121,7 +127,7 @@ pub mod memory {
                 
                     //expect arg1 to be an address 
 
-                if instr.opcode == LDR_D as i32 { //if register direct
+                if instr.opcode == LDR_D as i32 || instr.opcode == GDR_D as i32 { //if register direct
                     //check hit/miss
                     let index = (instr.arg1 / 4) % CACHE_SIZE;
                     let tag = instr.arg1 / (4 * CACHE_SIZE);
@@ -142,7 +148,7 @@ pub mod memory {
                     }
                     
                 }
-                else if instr.opcode == LDR_I as i32  { //if register indirect
+                else if instr.opcode == LDR_I as i32 || instr.opcode == GDR_I as i32  { //if register indirect
                     let main_addr = instr.arg1; //main memory address specified by register
                     //check cache for that memory
                     let mut index_i = (main_addr / 4) % CACHE_SIZE;
@@ -181,14 +187,14 @@ pub mod memory {
             
                     //expect arg2 to be an address
                     
-                else if instr.opcode == STR_D as i32  { //if register direct
+                else if instr.opcode == STR_D as i32  || instr.opcode == GTR_D as i32 { //if register direct
                     //let index =  instr.arg2 % CACHE_SIZE; //map address with offset to cache index
                     //let tag = instr.arg2 >> (32 - TAG_LENGTH);
                     self.delay = MEMORY_DELAY; //due to write through
 
                 }
 
-                else if instr.opcode == STR_I as i32 { //if register indirect
+                else if instr.opcode == STR_I as i32 || instr.opcode == GTR_I as i32  { //if register indirect
                     let main_addr = instr.arg2; //main memory address specified by instruction
                     //check cache for that memory
                     let mut index_i = (main_addr / 4) % CACHE_SIZE;
@@ -215,6 +221,9 @@ pub mod memory {
 
                 }
 
+                else if instr.opcode == FDR as i32 || instr.opcode == FTR as i32 { //load graphics memory into frame buffer
+                    self.delay = MEMORY_DELAY * (MEMORY_SIZE - (GRAPHICS_OFFSET / 4)); //delay equivalent to loading or storing  all lines individually
+                }
                  
 
                 return ReturnVal::Wait(true) //return wait on first call 
@@ -232,7 +241,7 @@ pub mod memory {
                     //if LDR, simply return data
                     //TODO: !self.on
                         
-                    if instr.opcode == LDR_D as i32  { //if register direct
+                    if instr.opcode == LDR_D as i32 ||  instr.opcode == GDR_D as i32 { //if register direct
                         if !self.on {
                             let index = instr.arg1 / 4; 
                             let offset = instr.arg1 % 4;
@@ -263,7 +272,7 @@ pub mod memory {
                         
                     }
                     
-                    else if instr.opcode == LDR_I as i32  { //if indirect
+                    else if instr.opcode == LDR_I as i32  || instr.opcode == GDR_I as i32 { //if indirect
                         if !self.on {
                             let main_index = instr.arg1 / 4; 
                             let main_offset = instr.arg1 % 4;
@@ -304,7 +313,7 @@ pub mod memory {
                     }
 
                         
-                    else if instr.opcode == STR_D as i32 { //assumes that memory and cache are synched
+                    else if instr.opcode == STR_D as i32 || instr.opcode == GTR_D as i32 { //assumes that memory and cache are synched
                             
                             //if register direct
                             let addr = instr.arg2;
@@ -337,10 +346,10 @@ pub mod memory {
                             self.data[index as usize][1] = 1; //set valid bit
 
                            
-                            return self.finish_instruction(addr / 4, addr % 4);
+                            return self.finish_instruction(index, addr % 4);
                     }
 
-                    else if instr.opcode == STR_I as i32 {
+                    else if instr.opcode == STR_I as i32 || instr.opcode == GTR_I as i32 {
                             let main_addr = instr.arg2;
                             let addr = self.main_memory[(main_addr / 4) as usize][(main_addr % 4) as usize]; //find address in the memory cell specified by the register and add offset
                             let index = (addr / 4) % CACHE_SIZE; //find mapped location
@@ -371,6 +380,27 @@ pub mod memory {
                            
                             return self.finish_instruction(index, addr % 4);
                     }
+
+                    if instr.opcode == FDR as i32 { //load graphics memory into frame buffer
+                        for i in (GRAPHICS_OFFSET / 4)..(MEMORY_SIZE - 1) { //for line between beginning of graphics memory and top of memory
+                            for j in 0..4 { //for word in line
+                                self.frame_buffer[(i - (GRAPHICS_OFFSET / 4)) as usize][j as usize] = self.main_memory[i as usize][j as usize] 
+                            }
+                        }
+
+                        return self.finish_instruction((MEMORY_SIZE - 1) % CACHE_SIZE, (MEMORY_SIZE - 1) % 4) //confirmation return, no real info
+                    }
+
+                    if instr.opcode == FTR as i32 {
+                        for i in (GRAPHICS_OFFSET / 4)..(MEMORY_SIZE) { //for line between beginning of graphics memory and top of memory
+                            for j in 0..4 { //for word in line
+                                self.main_memory[i as usize][j as usize] = self.frame_buffer[(i - (GRAPHICS_OFFSET / 4)) as usize][j as usize] 
+                            }
+                        }
+
+                        return self.finish_instruction((MEMORY_SIZE - 1) % CACHE_SIZE, (MEMORY_SIZE - 1) % 4) //confirmation return, no real info
+                    }
+
                         
 
                     return ReturnVal::Wait(true);

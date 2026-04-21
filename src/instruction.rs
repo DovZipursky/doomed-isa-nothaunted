@@ -27,7 +27,7 @@ pub mod instruction {
         Cache
     }
 
-    #[derive(Eq, PartialEq, Clone, Copy, Debug)]
+    #[derive(PartialEq, Eq, Clone, Copy, Debug)]
     pub struct Instruction {
         pub instr_type: InstructionType,
         pub device: Devices,
@@ -36,9 +36,14 @@ pub mod instruction {
         pub arg1: i32,
         pub arg2: i32,
         pub arg3: i32,
+        pub reg1: i32,
+        pub reg2: i32,
+        pub reg3: i32,
         pub result: Option<i32>,
         pub pc: i32
     }
+
+   
 
     impl Instruction {
         pub fn new() -> Self {
@@ -50,6 +55,9 @@ pub mod instruction {
                 arg1: 0,
                 arg2: 0,
                 arg3: 0,
+                reg1: 0,
+                reg2: 0,
+                reg3: 0,
                 result: None,
                 pc: 0
             }
@@ -69,6 +77,7 @@ pub mod instruction {
                         self.arg1.to_string(), self.arg2.to_string(), self.arg3.to_string(), result);
 
         }
+
     }
 
 

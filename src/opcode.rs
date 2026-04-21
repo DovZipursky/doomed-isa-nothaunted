@@ -69,6 +69,8 @@ pub mod opcode {
     pub const POP_D: u32 = 55;
     pub const POP_I: u32 = 56;
     pub const POP_PC: u32 = 57;
+    pub const FDR: u32 = 58; //frame load, pulls graphics memory into frame buffer
+    pub const FTR: u32 = 59; //frame store, puts frame buffer into graphics memory
 
 
 }
