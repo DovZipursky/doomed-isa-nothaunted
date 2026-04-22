@@ -1,6 +1,6 @@
 pub mod opcode {
     //Special
-    pub const HALT: u32 = 0; //Done pretty sure
+    pub const HALT: u32 = 0; //Done
     //ALU - handled by execute stage and writeback
     // RR = register + register
     // RI = register + immediate
@@ -36,34 +36,34 @@ pub mod opcode {
     //PC = PC relative
     pub const JMP_D: u32 = 26; //Done
     pub const JMP_I: u32 = 27;  //Done
-    pub const JMP_PC: u32 = 28;         //JMPS save lr for return
+    pub const JMP_PC: u32 = 28;  //Done       //JMPS save lr for return
     pub const CMP_RR: u32 = 29; //Done
     pub const CMP_RI: u32 = 30;//Done
-    pub const JE_D: u32 = 31;
-    pub const JE_I: u32 = 32;
-    pub const JE_PC: u32 = 33;
+    pub const JE_D: u32 = 31; //Done
+    pub const JE_I: u32 = 32; //Done
+    pub const JE_PC: u32 = 33; //Done
     pub const JL_D: u32 = 34; //Done
     pub const JL_I: u32 = 35; //Done
-    pub const JL_PC: u32 = 36;
-    pub const JG_D: u32 = 37;
-    pub const JG_I: u32 = 38;
-    pub const JG_PC: u32 = 39;
+    pub const JL_PC: u32 = 36; //Done
+    pub const JG_D: u32 = 37; //Done
+    pub const JG_I: u32 = 38; //Done
+    pub const JG_PC: u32 = 39; //Done
     pub const RET: u32 = 40; //Done
 
     //memory - handled by memory and writeback stages
 
     pub const LDR_D: u32 = 41; //Done
     pub const LDR_I: u32 = 42; //Done
-    pub const LDR_PC: u32 = 43;
+    pub const LDR_PC: u32 = 43; //Done
     pub const STR_D: u32 = 44; //Done
     pub const STR_I: u32 = 45; //Done
-    pub const STR_PC: u32 = 46;
+    pub const STR_PC: u32 = 46; //Done
     pub const GDR_D: u32 = 47; //Done
     pub const GDR_I: u32 = 48; //Done
-    pub const GDR_PC: u32 = 49;
+    pub const GDR_PC: u32 = 49; //Done
     pub const GTR_D: u32 = 50; //Done
     pub const GTR_I: u32 = 51; //Done
-    pub const GTR_PC: u32 = 52;
+    pub const GTR_PC: u32 = 52; //Done
     pub const PSH: u32 = 53; //Done
     pub const POP: u32 = 55; //Done
     pub const FDR: u32 = 58; //frame load, pulls graphics memory into frame buffer //Done
