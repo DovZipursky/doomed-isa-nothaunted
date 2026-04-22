@@ -11,7 +11,7 @@ use doomed_isa::opcode::opcode::RS_RR;
 
 use crate::{instruction::instruction::{Devices, Instruction, InstructionType}, 
 memory::memory::{Cache, Registers, ReturnVal}, 
-opcode::opcode::{ADD_RI, AND_RI, CMP_RI, CMP_RR, DIV_RI, JL_D, LDR_D, LDR_I, LS_RI, LSL_RI, LSR_RI, MOD_RI, MUL_RI, OR_RI, RS_RI, STR_D, STR_I, SUB_RI, XOR_RI}, pipeline::pipeline::Controler};
+opcode::opcode::{ADD_RI, AND_RI, CMP_RI, CMP_RR, DIV_RI, FDR, FTR, GTR_D, HALT, JG_PC, JL_D, JL_PC, JMP_D, LDR_D, LDR_I, LDR_PC, LS_RI, LSL_RI, LSR_RI, MOD_RI, MUL_RI, OR_RI, POP, PSH, RET, RS_RI, STR_D, STR_I, STR_PC, SUB_RI, XOR_RI}, pipeline::pipeline::Controler};
 use crate::{pipeline::pipeline::{Decode, Memory, Fetch, Execute, Writeback}};
 
 use std::cell::RefCell;
@@ -43,9 +43,9 @@ fn main() {
 
     let type_field:u32 = 0;
     let opcode = ADD_RI;
-    let reg1 = 3;
-    let reg2 = 0;
-    let reg3 = 3;
+    let reg1 = 2;
+    let reg2 = 1;
+    let reg3 = 2;
     let imm2: u32 = 1;
     let imm3: u32 = 0;
 
@@ -81,14 +81,328 @@ fn main() {
     //test_mem_stage();
 
     //test_writeback();
+    
+    //TESTS ABOVE HERE WERE DESIGNED WHEN THE CACHE AND MEMORY DID NOT HAVE FULL LINES
+    //RESULTS ARE NOT ACCURATE TO CURRENT FUNCTIONALITY
+
     //test_improved_memory();
+    
     //test_control_flow();
 
     //test_cache_switch();
 
-    test_pipe_switch();
+    //test_pipe_switch();
+
+    //test_graphics_instructions();
+
+    //test_push_pop();
     
+    //test_jmp_ret();
+
+    test_pc_rel();
     
+}
+
+pub fn test_pc_rel() {
+    let i0 = instr_fields_to_decimal(0, ADD_RI, 2, 5, 2, InstructionType::ALU);
+    let i1 = instr_fields_to_decimal(0, ADD_RI, 0, 2, 0, InstructionType::ALU);
+    let i2 = instr_fields_to_decimal(0, STR_PC, 2, 0, 0, InstructionType::Memory); //should store in addr 2
+    let i3 = instr_fields_to_decimal(0, LDR_PC, 0, 2, 0, InstructionType::Memory); // 0 second arg bc decode autofills sp index
+    let i4 = instr_fields_to_decimal(0, CMP_RI, 2, 5, 0, InstructionType::ALU);
+    let i5 = instr_fields_to_decimal(1, JG_PC, 2, 0, 0, InstructionType::Memory); ///2 in R0, so hops to 5 + 2 = 7
+    let i6 = instr_fields_to_decimal(0, HALT, 0, 0, 0, InstructionType::Control);
+    let i7 = instr_fields_to_decimal(0, ADD_RI, 0, 1, 0, InstructionType::Control);
+    let i8 = instr_fields_to_decimal(0, HALT, 0, 0, 0, InstructionType::Control);
+
+    create_binary_file("src/programs/graphics-test.bin", &[i0, i1, i2, i3, i4, i5, i6, i7, i8]);
+    
+    let mut reg = Registers::new();
+    //reg.update_gp(1, 600);
+    let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
+    cache.load_memory_from_file("src/programs/graphics-test.bin".to_string());
+
+    let mut ctrl = Controler::new();
+    //ctrl.switch(true);
+
+    let cache_ref = &mut cache;
+    let reg_ref = &mut reg;
+    let ctrl_ref = &mut ctrl;
+    let mut fetch = Fetch::new();
+    let mut decode = Decode::new(fetch);
+    let mut excecute = Execute::new(decode);
+    let mut memory = Memory::new( excecute);
+    let mut writeback = Writeback::new( memory);
+
+    let mut wb_ret: Option<Instruction> = None;
+
+    while wb_ret.is_none() || (wb_ret.is_some() && wb_ret.unwrap().opcode != HALT as i32) {
+        println!("{}", "  ");
+        println!("{}", "Writeback State: ");
+        println!("{}", writeback.state());
+        println!("{}", "  ");
+        println!("{}", "Memory State: ");
+        println!("{}", writeback.mem_stage.state());
+        println!("{}", "  ");
+        println!("{}", "Excecute State: ");
+        println!("{}", writeback.mem_stage.exec_stage.state());
+        println!("{}", "  ");
+        println!("{}", "Decode State: ");
+        let (cur, dec):(String, String) = writeback.mem_stage.exec_stage.dec_stage.state();
+        println!("{} \n {}", cur, dec);
+        println!("{}", "  ");
+        println!("{}", "Fetch State: ");
+        let (cur_i, pc) = writeback.mem_stage.exec_stage.dec_stage.fetch_stage.state();
+        println!("{} \n {}", cur_i, pc);
+        println!("{}", "  ");
+        wb_ret = writeback.call(reg_ref, cache_ref, ctrl_ref);
+    }
+
+    println!("made it");
+}
+
+pub fn test_jmp_ret() {
+    let i0 = instr_fields_to_decimal(0, ADD_RI, 2, 5, 2, InstructionType::ALU);
+    let i1 = instr_fields_to_decimal(0, ADD_RI, 0, 1, 0, InstructionType::ALU);
+    let i2 = instr_fields_to_decimal(0, JMP_D, 2, 0, 0, InstructionType::Control);
+    let i3 = instr_fields_to_decimal(0, PSH, 0, 0, 0, InstructionType::Memory); // 0 second arg bc decode autofills sp index
+    let i4 = instr_fields_to_decimal(0, ADD_RI, 2, 5, 0, InstructionType::ALU);
+    let i5 = instr_fields_to_decimal(0, POP, 0, 0, 0, InstructionType::Memory); //similar here for first arg
+    let i6 = instr_fields_to_decimal(0, RET, 0, 0, 0, InstructionType::Control);
+
+    create_binary_file("src/programs/graphics-test.bin", &[i0, i1, i2, i3, i4, i5, i6]);
+    
+    let mut reg = Registers::new();
+    //reg.update_gp(1, 600);
+    let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
+    cache.load_memory_from_file("src/programs/graphics-test.bin".to_string());
+
+    let mut ctrl = Controler::new();
+    //ctrl.switch(true);
+
+    let cache_ref = &mut cache;
+    let reg_ref = &mut reg;
+    let ctrl_ref = &mut ctrl;
+    let mut fetch = Fetch::new();
+    let mut decode = Decode::new(fetch);
+    let mut excecute = Execute::new(decode);
+    let mut memory = Memory::new( excecute);
+    let mut writeback = Writeback::new( memory);
+
+    let mut wb_ret: Option<Instruction> = None;
+
+    while wb_ret.is_none() || (wb_ret.is_some() && wb_ret.unwrap().instr_type != InstructionType::NOOP) {
+        println!("{}", "  ");
+        println!("{}", "Writeback State: ");
+        println!("{}", writeback.state());
+        println!("{}", "  ");
+        println!("{}", "Memory State: ");
+        println!("{}", writeback.mem_stage.state());
+        println!("{}", "  ");
+        println!("{}", "Excecute State: ");
+        println!("{}", writeback.mem_stage.exec_stage.state());
+        println!("{}", "  ");
+        println!("{}", "Decode State: ");
+        let (cur, dec):(String, String) = writeback.mem_stage.exec_stage.dec_stage.state();
+        println!("{} \n {}", cur, dec);
+        println!("{}", "  ");
+        println!("{}", "Fetch State: ");
+        let (cur_i, pc) = writeback.mem_stage.exec_stage.dec_stage.fetch_stage.state();
+        println!("{} \n {}", cur_i, pc);
+        println!("{}", "  ");
+        wb_ret = writeback.call(reg_ref, cache_ref, ctrl_ref);
+    }
+
+    println!("made it");
+}
+
+pub fn test_push_pop() {
+
+    let i0 = instr_fields_to_decimal(0, ADD_RI, 2, 1, 2, InstructionType::ALU);
+    let i1 = instr_fields_to_decimal(0, ADD_RI, 0, 1, 0, InstructionType::ALU);
+    let i2 = instr_fields_to_decimal(0, PSH, 2, 0, 0, InstructionType::Memory);
+    let i3 = instr_fields_to_decimal(0, PSH, 0, 0, 0, InstructionType::Memory); // 0 second arg bc decode autofills sp index
+    let i4 = instr_fields_to_decimal(0, ADD_RI, 2, 5, 0, InstructionType::ALU);
+    let i5 = instr_fields_to_decimal(0, POP, 0, 0, 0, InstructionType::Memory); //similar here for first arg
+    let i6 = instr_fields_to_decimal(0, POP, 0, 2, 0, InstructionType::Memory);
+
+    create_binary_file("src/programs/graphics-test.bin", &[i0, i1, i2, i3, i4, i5, i6]);
+    
+    let mut reg = Registers::new();
+    //reg.update_gp(1, 600);
+    let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
+    cache.load_memory_from_file("src/programs/graphics-test.bin".to_string());
+
+    let mut ctrl = Controler::new();
+    //ctrl.switch(true);
+
+    let cache_ref = &mut cache;
+    let reg_ref = &mut reg;
+    let ctrl_ref = &mut ctrl;
+    let mut fetch = Fetch::new();
+    let mut decode = Decode::new(fetch);
+    let mut excecute = Execute::new(decode);
+    let mut memory = Memory::new( excecute);
+    let mut writeback = Writeback::new( memory);
+
+    let mut wb_ret: Option<Instruction> = None;
+
+    while wb_ret.is_none() || (wb_ret.is_some() && wb_ret.unwrap().instr_type != InstructionType::NOOP) {
+        println!("{}", "  ");
+        println!("{}", "Writeback State: ");
+        println!("{}", writeback.state());
+        println!("{}", "  ");
+        println!("{}", "Memory State: ");
+        println!("{}", writeback.mem_stage.state());
+        println!("{}", "  ");
+        println!("{}", "Excecute State: ");
+        println!("{}", writeback.mem_stage.exec_stage.state());
+        println!("{}", "  ");
+        println!("{}", "Decode State: ");
+        let (cur, dec):(String, String) = writeback.mem_stage.exec_stage.dec_stage.state();
+        println!("{} \n {}", cur, dec);
+        println!("{}", "  ");
+        println!("{}", "Fetch State: ");
+        let (cur_i, pc) = writeback.mem_stage.exec_stage.dec_stage.fetch_stage.state();
+        println!("{} \n {}", cur_i, pc);
+        println!("{}", "  ");
+        wb_ret = writeback.call(reg_ref, cache_ref, ctrl_ref);
+    }
+
+    println!("made it");
+    //appears to work fine! remember to save your registers
+
+}
+
+pub fn test_graphics_instructions() {
+    let i0 = instr_fields_to_decimal(0, ADD_RI, 2, 1, 2, InstructionType::ALU);
+    let i1 = instr_fields_to_decimal(0, GTR_D, 0, 0, 0, InstructionType::Memory);
+    let i2 = instr_fields_to_decimal(0, ADD_RI, 0, 1, 0, InstructionType::ALU);
+    let i3 = instr_fields_to_decimal(0, CMP_RR, 0, 1, 0, InstructionType::Control);
+    let i4 = instr_fields_to_decimal(0, JL_D, 2, 0, 0, InstructionType::Control);
+    let i5 = Instruction {
+        type_field: 0,
+        instr_type: InstructionType::Memory,
+        device: Devices::Memory,
+        opcode: FDR as i32,
+        arg1: 0,
+        arg2: 0,
+        arg3: 0,
+        reg1: 0,
+        reg2: 0,
+        reg3: 0,
+        result: None,
+        pc: 5
+    };
+
+    create_binary_file("src/programs/graphics-test.bin", &[i0, i1, i2, i3, i4]);
+    
+    let mut reg = Registers::new();
+    reg.update_gp(1, 600);
+    let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
+    cache.load_memory_from_file("src/programs/graphics-test.bin".to_string());
+
+    let mut ctrl = Controler::new();
+    //ctrl.switch(true);
+
+    let cache_ref = &mut cache;
+    let reg_ref = &mut reg;
+    let ctrl_ref = &mut ctrl;
+    let mut fetch = Fetch::new();
+    let mut decode = Decode::new(fetch);
+    let mut excecute = Execute::new(decode);
+    let mut memory = Memory::new( excecute);
+    let mut writeback = Writeback::new( memory);
+
+    let mut wb_ret: Option<Instruction> = None;
+
+    while wb_ret.is_none() || (wb_ret.is_some() && wb_ret.unwrap().instr_type != InstructionType::NOOP) {
+        println!("{}", "  ");
+        println!("{}", "Writeback State: ");
+        println!("{}", writeback.state());
+        println!("{}", "  ");
+        println!("{}", "Memory State: ");
+        println!("{}", writeback.mem_stage.state());
+        println!("{}", "  ");
+        println!("{}", "Excecute State: ");
+        println!("{}", writeback.mem_stage.exec_stage.state());
+        println!("{}", "  ");
+        println!("{}", "Decode State: ");
+        let (cur, dec):(String, String) = writeback.mem_stage.exec_stage.dec_stage.state();
+        println!("{} \n {}", cur, dec);
+        println!("{}", "  ");
+        println!("{}", "Fetch State: ");
+        let (cur_i, pc) = writeback.mem_stage.exec_stage.dec_stage.fetch_stage.state();
+        println!("{} \n {}", cur_i, pc);
+        println!("{}", "  ");
+        wb_ret = writeback.call(reg_ref, cache_ref, ctrl_ref);
+    }
+
+    println!("made it");
+
+    let mut cache_ret = ReturnVal::Wait(true);
+    let mut i = 0;
+    while cache_ret == ReturnVal::Wait(true) {
+        println!("cache delay = {}", i);
+        cache_ret = cache_ref.call(i5);
+        i = i + 1;
+    }
+
+
+    println!("made it 2");
+
+    let i6 =  Instruction {
+        type_field: 0,
+        instr_type: InstructionType::Memory,
+        device: Devices::Memory,
+        opcode: FTR as i32,
+        arg1: 0,
+        arg2: 0,
+        arg3: 0,
+        reg1: 0,
+        reg2: 0,
+        reg3: 0,
+        result: None,
+        pc: 5
+    };
+
+    cache_ret = ReturnVal::Wait(true);
+    i = 0;
+    while cache_ret == ReturnVal::Wait(true) {
+        println!("cache delay = {}", i);
+        cache_ret = cache_ref.call(i6);
+        i = i + 1;
+    }
+
+    println!("made it 3");
+
+    let i7 = Instruction {
+        type_field: 0,
+        instr_type: InstructionType::Memory,
+        device: Devices::Memory,
+        opcode: GTR_D as i32,
+        arg1: 4,
+        arg2: 7,
+        arg3: 0,
+        reg1: 0,
+        reg2: 0,
+        reg3: 0,
+        result: None,
+        pc: 5
+    };
+
+    cache_ret = ReturnVal::Wait(true);
+    i = 0;
+    while cache_ret == ReturnVal::Wait(true) {
+        //println!("cache delay = {}", i);
+        cache_ret = cache_ref.call(i7);
+        i = i + 1;
+    }
+
+    println!("made it 4");
+
+
+
+
 }
 
 pub fn test_pipe_switch() {
@@ -116,7 +430,7 @@ pub fn test_pipe_switch() {
     reg.update_gp(2 as usize, 0);
     reg.update_gp(3 as usize, 8);
     reg.update_gp(4 as usize,0);
-    let mut cache = Cache::new([[-1; 7]; 4], [[-1; 4]; 64]);
+    let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
     cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
     let mut ctrl = Controler::new();
@@ -166,6 +480,9 @@ pub fn test_cache_switch() {
         arg1: 4,
         arg2: 0,
         arg3: 0,
+        reg1: 0,
+        reg2: 0,
+        reg3: 0,
         result: None,
         pc: 0
     };
@@ -178,6 +495,9 @@ pub fn test_cache_switch() {
         arg1: 0,
         arg2: 0,
         arg3: 0,
+        reg1: 0,
+        reg2: 0,
+        reg3: 0,
         result: None,
         pc: 0
     };
@@ -190,6 +510,9 @@ pub fn test_cache_switch() {
         arg1: 4,
         arg2: 0,
         arg3: 0,
+        reg1: 0,
+        reg2: 0,
+        reg3: 0,
         result: None,
         pc: 0
     };
@@ -202,11 +525,14 @@ pub fn test_cache_switch() {
         arg1: 2,
         arg2: 0,
         arg3: 0,
+        reg1: 0,
+        reg2: 0,
+        reg3: 0,
         result: None,
         pc: 0
     };
 
-    let mut cache = Cache::new([[-1; 7]; 4], [[-1; 4]; 64]);
+    let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
     cache.switch(false);
 
     let mut ret = cache.call(str_d);
@@ -227,11 +553,13 @@ pub fn test_cache_switch() {
     ret = cache.call(str_i);
     ret = cache.call(str_i);
 
+
     println!("{}", cache.get_memory(4)[0].to_string());
     println!("{}", cache.get_memory(4)[1].to_string());
     println!("{}", cache.get_memory(4)[2].to_string());
     println!("{}", cache.get_memory(4)[3].to_string());
 
+   
     ret = cache.call(load_d);
     ret = cache.call(load_d);
     ret = cache.call(load_d);
@@ -260,6 +588,9 @@ pub fn test_improved_memory() {
         arg1: 10, //line 2, word 2
         arg2: 0,
         arg3: 0,
+        reg1: 0,
+        reg2: 0,
+        reg3: 0,
         result: None,
         pc: 0
     };
@@ -272,6 +603,9 @@ pub fn test_improved_memory() {
         arg1: 7, //line 1, word 3
         arg2: 0,
         arg3: 0,
+        reg1: 0,
+        reg2: 0,
+        reg3: 0,
         result: None,
         pc: 0
     };
@@ -284,10 +618,13 @@ pub fn test_improved_memory() {
         arg1: 69, //line 17, word 1
         arg2: 0,
         arg3: 0,
+        reg1: 0,
+        reg2: 0,
+        reg3: 0,
         result: None,
         pc: 0
     };
-    let mut main_memory = [[-1; 4]; 64];
+    let mut main_memory = [[-1; 4]; 1000];
     main_memory[2][0] = 1;
     main_memory[2][1] = 2;
     main_memory[2][2] = 3;
@@ -303,7 +640,7 @@ pub fn test_improved_memory() {
     main_memory[17][2] = 71;
     main_memory[17][3] = 72;
 
-    let mut cache = Cache::new([[-1; 7]; 4], main_memory);
+    let mut cache = Cache::new([[-1; 7]; 250], main_memory);
 
     let mut ret = cache.call(load);
     ret = cache.call(load);
@@ -327,7 +664,7 @@ pub fn test_improved_memory() {
     assert_eq!(ret, ReturnVal::Data(70));
     //basic load works!
 
-    let mut prefilled:[[i32; 7]; 4] = [[-1; 7]; 4];
+    let mut prefilled:[[i32; 7]; 250] = [[-1; 7]; 250];
     prefilled[0][0] = 8;
     prefilled[0][1] = 1;
     prefilled[1][0] = 9;
@@ -353,6 +690,9 @@ pub fn test_improved_memory() {
         arg1: 0,
         arg2: 2,
         arg3: 0,
+        reg1: 0,
+        reg2: 0,
+        reg3: 0,
         result: None,
         pc: 0
     };
@@ -365,6 +705,9 @@ pub fn test_improved_memory() {
         arg1: 2,
         arg2: 10,
         arg3: 0,
+        reg1: 0,
+        reg2: 0,
+        reg3: 0,
         result: None,
         pc: 0
     };
@@ -413,7 +756,7 @@ pub fn test_control_flow() {
     reg.update_gp(2 as usize, 0);
     reg.update_gp(3 as usize, 8);
     reg.update_gp(4 as usize,0);
-    let mut cache = Cache::new([[-1; 7]; 4], [[-1; 4]; 64]);
+    let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
     cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
     let cache_ref = &mut cache;
@@ -489,7 +832,7 @@ pub fn instr_fields_to_decimal(type_field: u32, opcode: u32, arg1: u32, arg2: u3
                 | (arg2 << REG2_SHIFT)
                 | (arg3 << REG3_SHIFT);
             }
-        else { //some jump
+        else { //some jump or RET
             return (type_field << TYPE_SHIFT)
                 | (opcode << OPCODE_SHIFT)
                 | (arg1 << REG1_SHIFT)
@@ -499,11 +842,12 @@ pub fn instr_fields_to_decimal(type_field: u32, opcode: u32, arg1: u32, arg2: u3
             }
         }
         else if instr_type == InstructionType::Memory {
-        return (type_field << TYPE_SHIFT)
-                | (opcode << OPCODE_SHIFT)
-                | (arg1 << REG1_SHIFT)
-                | (arg2 << REG2_SHIFT)
-                | (arg3 << IMMEDIATE3_SHIFT);
+            
+            return (type_field << TYPE_SHIFT)
+                    | (opcode << OPCODE_SHIFT)
+                    | (arg1 << REG1_SHIFT)
+                    | (arg2 << REG2_SHIFT)
+                    | (arg3 << IMMEDIATE3_SHIFT);
 
         }
         else {
@@ -522,6 +866,9 @@ pub fn test_memory() {
             arg1: 5,
             arg2: 5,
             arg3: 0,
+            reg1: 0,
+            reg2: 0,
+            reg3: 0,
             result: None,
             pc: 0
         };
@@ -534,6 +881,9 @@ pub fn test_memory() {
             arg1: 5,
             arg2: 0,
             arg3: 0,
+            reg1: 0,
+            reg2: 0,
+            reg3: 0,
             result: None,
             pc: 0
         };
@@ -546,6 +896,9 @@ pub fn test_memory() {
             arg1: 5,
             arg2: 5,
             arg3: 0,
+            reg1: 0,
+            reg2: 0,
+            reg3: 0,
             result: None,
             pc: 0
         };
@@ -553,7 +906,7 @@ pub fn test_memory() {
         let mut data: ReturnVal = ReturnVal::Wait(true);
         let reg = Registers::new();
 
-        let mut cache = Cache::new([[-1; 7]; 4], [[-1; 4]; 64]);
+        let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
 
         data = cache.call(instr);
         data = cache.call(instr); //should take 1, 2, 3 calls to store due to write through
@@ -608,6 +961,9 @@ pub fn test_memory() {
             arg1: 5,
             arg2: 0,
             arg3: 0,
+            reg1: 0,
+            reg2: 0,
+            reg3: 0,
             result: None,
             pc: 0
         };
@@ -675,7 +1031,7 @@ pub fn test_memory() {
     pub fn test_fetch()  {
         create_binary_file("src/programs/fetch-test.bin", &[20,21,20,21,10,9]);
         let mut reg = Registers::new();
-        let mut cache = Cache::new([[-1; 7]; 4], [[-1; 4]; 64]);
+        let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
         cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
         let cache_ref = &mut cache;
@@ -711,7 +1067,7 @@ pub fn test_memory() {
         let mut reg = Registers::new();
         reg.update_gp(1 as usize, 1);
         reg.update_gp(0 as usize, 1);
-        let mut cache = Cache::new([[-1; 7]; 4], [[-1; 4]; 64]);
+        let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
         cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
         let comp_instr = Instruction {
@@ -722,6 +1078,9 @@ pub fn test_memory() {
             arg1: 1,
             arg2: 2,
             arg3: 0,
+            reg1: 0,
+            reg2: 0,
+            reg3: 0,
             result: None,
             pc: 0
 
@@ -735,6 +1094,9 @@ pub fn test_memory() {
             arg1:0,
             arg2:0,
             arg3:0,
+            reg1: 0,
+            reg2: 0,
+            reg3: 0,
             result:None,
             pc:0
         };
@@ -762,6 +1124,9 @@ pub fn test_memory() {
             arg1: 1,
             arg2: 3,
             arg3: 3,
+            reg1: 0,
+            reg2: 0,
+            reg3: 0,
             result: None,
             pc: 1
 
@@ -782,6 +1147,9 @@ pub fn test_memory() {
             arg1: 0,
             arg2: 0,
             arg3: 0,
+            reg1: 0,
+            reg2: 0,
+            reg3: 0,
             result: None,
             pc: 2
 
@@ -807,7 +1175,7 @@ pub fn test_memory() {
         let mut reg = Registers::new();
         reg.update_gp(1 as usize, 1);
         reg.update_gp(0 as usize, 1);
-        let mut cache = Cache::new([[-1; 7]; 4], [[-1; 4]; 64]);
+        let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
         cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
         let default = Instruction {
@@ -818,6 +1186,9 @@ pub fn test_memory() {
             arg1:0,
             arg2:0,
             arg3:0,
+            reg1: 0,
+            reg2: 0,
+            reg3: 0,
             result:None,
             pc:0
         };
@@ -867,7 +1238,7 @@ pub fn test_memory() {
         let mut reg = Registers::new();
         reg.update_gp(1 as usize, 1);
         reg.update_gp(0 as usize, 1);
-        let mut cache = Cache::new([[-1; 7]; 4], [[-1; 4]; 64]);
+        let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
         cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
         let default = Instruction {
@@ -878,6 +1249,9 @@ pub fn test_memory() {
             arg1:0,
             arg2:0,
             arg3:0,
+            reg1: 0,
+            reg2: 0,
+            reg3: 0,
             result:None,
             pc:0
         };
@@ -916,7 +1290,7 @@ pub fn test_memory() {
         let mut reg = Registers::new();
         reg.update_gp(1 as usize, 1);
         reg.update_gp(0 as usize, 1);
-        let mut cache = Cache::new([[-1; 7]; 4], [[-1; 4]; 64]);
+        let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
         cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
         let default = Instruction {
@@ -927,6 +1301,9 @@ pub fn test_memory() {
             arg1:0,
             arg2:0,
             arg3:0,
+            reg1: 0,
+            reg2: 0,
+            reg3: 0,
             result:None,
             pc:0
         };

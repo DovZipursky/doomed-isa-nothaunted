@@ -1,0 +1,10 @@
+/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted/target/debug/deps/ecolor-7860420d01d804dc.d: /Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ecolor-0.34.1/src/lib.rs /Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ecolor-0.34.1/src/color32.rs /Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ecolor-0.34.1/src/hsva_gamma.rs /Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ecolor-0.34.1/src/hsva.rs /Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ecolor-0.34.1/src/rgba.rs /Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ecolor-0.34.1/src/hex_color_runtime.rs
+
+/Users/dovzipursky/Desktop/RustProjects/doomed-isa-nothaunted/target/debug/deps/libecolor-7860420d01d804dc.rmeta: /Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ecolor-0.34.1/src/lib.rs /Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ecolor-0.34.1/src/color32.rs /Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ecolor-0.34.1/src/hsva_gamma.rs /Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ecolor-0.34.1/src/hsva.rs /Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ecolor-0.34.1/src/rgba.rs /Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ecolor-0.34.1/src/hex_color_runtime.rs
+
+/Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ecolor-0.34.1/src/lib.rs:
+/Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ecolor-0.34.1/src/color32.rs:
+/Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ecolor-0.34.1/src/hsva_gamma.rs:
+/Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ecolor-0.34.1/src/hsva.rs:
+/Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ecolor-0.34.1/src/rgba.rs:
+/Users/dovzipursky/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ecolor-0.34.1/src/hex_color_runtime.rs:
