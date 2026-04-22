@@ -353,7 +353,13 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                     }
                     else if instr.opcode == JL_D as i32 || instr.opcode == JL_I as i32 || instr.opcode == JL_PC as i32 {//JL
                         if reg.get_flags() == -1 {
-                            instr.result.replace(instr.arg1 + instr.arg2);
+                            if instr.type_field == 1 {
+                                instr.result.replace(instr.arg1 + reg.get_gp(instr.reg2 as usize));
+                            }
+                            else {
+                                instr.result.replace(instr.arg1);
+                            }
+                        
                         }
                         else {
                             instr.result.replace(instr.pc);
@@ -362,7 +368,12 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                     }
                     else if instr.opcode == JE_D as i32 || instr.opcode == JE_I as i32 || instr.opcode == JE_PC as i32 {//JL
                         if reg.get_flags() == 0 {
-                            instr.result.replace(instr.arg1 + instr.arg2);
+                            if instr.type_field == 1 {
+                                instr.result.replace(instr.arg1 + reg.get_gp(instr.reg2 as usize));
+                            }
+                            else {
+                                instr.result.replace(instr.arg1);
+                            }
                         }
                         else {
                             instr.result.replace(instr.pc);
@@ -371,7 +382,12 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                     }
                     else if instr.opcode == JG_D as i32 || instr.opcode == JG_I as i32 || instr.opcode == JG_PC as i32 {//JL
                         if reg.get_flags() == 1 {
-                            instr.result.replace(instr.arg1 + instr.arg2);
+                            if instr.type_field == 1 {
+                                instr.result.replace(instr.arg1 + reg.get_gp(instr.reg2 as usize));
+                            }
+                            else {
+                                instr.result.replace(instr.arg1);
+                            }
                         }
                         else {
                             instr.result.replace(instr.pc);
@@ -542,8 +558,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                 let result: Option<i32> = None; 
                 let instruction: Instruction;
                 
-                //TODO
-                //add check for opcode 0 == HALT here and logic for that. 
+                
 
                 if fetch_type == InstructionType::Stall {
                     instruction = Instruction {
