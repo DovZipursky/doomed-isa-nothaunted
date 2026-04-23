@@ -10,7 +10,7 @@ use std::{collections::btree_map::Range, io, ptr::null};
 use doomed_isa::opcode::opcode::RS_RR;
 
 use eframe::App;
-use egui::{ScrollArea, util::id_type_map};
+use egui::{Grid, ScrollArea, util::id_type_map};
 use egui_extras::{Column, TableBuilder};
 
 use crate::{instruction::instruction::{Devices, Instruction, InstructionType}, 
@@ -965,6 +965,10 @@ pub fn test_memory() {
 struct Simulator {
     cache: Cache,
     registers: Registers,
+    ctrl: Controler,
+    cycles: u32,
+    bp: String,
+    breakpoints: Vec<u32>,
     filename: String,
     writeback: Writeback
 }
@@ -974,18 +978,22 @@ impl Default for Simulator {
         let mut cache = Cache::new([[-1; 7]; 4], [[-1; 4]; 64]);
         let mut registers = Registers::new();
         let mut ctrl = Controler::new();
-        let cache_ref = &mut cache;
-        let reg_ref = &mut registers;
-        let ctrl_ref = &mut ctrl;
         let filename = String::new();
+        let mut bp: String = String::new();
+        let mut breakpoints:Vec<u32> = Vec::new();
         let mut fetch_stage = Fetch::new();
         let mut dec_stage = Decode::new(fetch_stage);
         let mut exec_stage = Execute::new(dec_stage);
         let mut mem_stage = Memory::new(exec_stage);
         let mut writeback = Writeback::new(mem_stage);
+        let mut cycles: u32 = 0;
         Self {
             cache,
             registers,
+            ctrl,
+            cycles,
+            bp,
+            breakpoints,
             filename,
             writeback
         }
@@ -1014,9 +1022,29 @@ impl eframe::App for Simulator {
             ui.heading("DOOMed ISA Simulator");
             ui.horizontal(|ui| {
                 let path = ui.label("File path: ");
+                let mut wb_ret: Option<Instruction> = None;
                 ui.text_edit_singleline(&mut self.filename);
                 ui.button("Load").clicked().then(|| {self.cache.load_memory_from_file(self.filename.clone());});
-                ui.button("Run");
+                ui.button("Run").clicked().then(|| {
+                    while wb_ret.is_none() || (wb_ret.is_some() && wb_ret.unwrap().instr_type != InstructionType::NOOP) {
+                        wb_ret = self.writeback.call(&mut self.registers, &mut self.cache, &mut self.ctrl);
+                        let val = self.registers.reg[32] as u32;
+                        if let Some(pos) = self.breakpoints.iter().position(|&x| x == val) {
+                            self.breakpoints.remove(pos);
+                            break;
+                        }
+                        self.cycles += 1;
+                    }
+                });
+                ui.button("Step Cycle").clicked().then(|| {
+                    wb_ret = self.writeback.call(&mut self.registers, &mut self.cache, &mut self.ctrl);
+                    self.cycles += 1;
+                });
+                ui.button("Set Breakpoint").clicked().then(|| {self.breakpoints.push(self.bp.parse::<u32>().expect("Not a breakpoint!"));});
+                ui.text_edit_singleline(&mut self.bp);
+                ui.checkbox(&mut self.cache.on, "Cache");
+                ui.checkbox(&mut self.ctrl.on, "Control");
+                ui.label(format!("Cycle Count: {}", self.cycles));
             });
 
             ui.separator();
@@ -1035,15 +1063,27 @@ impl eframe::App for Simulator {
                         header.col(|ui| { ui.label("Value"); });
                     })
                     .body(|mut body| {
-                        for i in 0..16 {
-                            body.row(20.0, |mut row|{
-                                row.col(|ui| { ui.label(format!("{:?}", vec!["List", "of", "Registers"])); });
-                                row.col(|ui| { ui.label("Value"); });
+                        for i in 0..35 {
+                            body.row(20.0, |mut row| {
+                                row.col(|ui| {
+                                    let label_text = if i == 32 {
+                                        "PC".to_string()
+                                    } else if i == 33 {
+                                        "SP".to_string()
+                                    } else if i == 34 {
+                                        "LR".to_string()
+                                    } else {
+                                        format!("R{}", i)
+                                    };
+                                    ui.label(label_text);
+                                });
+                                row.col(|ui| { 
+                                    ui.label(self.registers.reg[i].to_string()); 
+                                });
                             });
                         }
                     });
                 });
-
                 columns[1].label("Memory");
                 ScrollArea::vertical().id_salt("second area").show(&mut columns[1], |ui| {
                     TableBuilder::new(ui)
@@ -1057,17 +1097,20 @@ impl eframe::App for Simulator {
                         header.col(|ui| { ui.label("Value"); });
                     })
                     .body(|mut body| {
-                        for i in 0..128 {
+                        for i in 0..64 {
                             body.row(20.0, |mut row| {
-                                row.col(|ui| { ui.label(format!("{:?}", vec!["List", "of", "Memory", "Addresses"])); });
-                                row.col(|ui| { ui.label("Value"); });
+                                row.col(|ui| { 
+                                    ui.label(format!("0x{i:X}")); 
+                                });
+                                row.col(|ui| { ui.label(format!("{:?}", self.cache.main_memory[i])); });
                             });
                         }
                     });
                 });
 
-                columns[2].label("Cache");
-                ScrollArea::vertical().id_salt("third area").show(&mut columns[2], |ui| {
+                columns[2].vertical(|ui| {
+                    ui.label("Cache");
+                    ScrollArea::vertical().id_salt("third area").show(ui, |ui| {
                     TableBuilder::new(ui)
                     .striped(true)
                     .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
@@ -1079,12 +1122,46 @@ impl eframe::App for Simulator {
                         header.col(|ui| { ui.label("Value"); });
                     })
                     .body(|mut body| {
-                        for i in 0..64 {
+                        for i in 0..4 {
                             body.row(20.0, |mut row| {
-                                row.col(|ui| { ui.label(format!("{:?}", vec!["List", "of", "Cache", "Lines"])); });
-                                row.col(|ui| { ui.label("Value"); });
+                                row.col(|ui| { ui.label(format!("0x{i:X}")); });
+                                row.col(|ui| { ui.label(format!("{:?}", self.cache.data[i])); });
                             });
                         }
+                    });
+                    });
+                    ui.separator();
+                    ui.label("Pipeline");
+                    ScrollArea::vertical().id_salt("fourth area").show(ui, |ui| {
+                    TableBuilder::new(ui)
+                    .striped(true)
+                    .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                    .id_salt("fourth")
+                    .column(Column::auto())
+                    .column(Column::remainder())
+                    .header(20.0, |mut header| {
+                        header.col(|ui| { ui.label("Stage"); });
+                        header.col(|ui| { ui.label("Value"); });
+                    })
+                    .body(|mut body| {
+                        for i in 0..5 {
+                            body.row(20.0, |mut row| {
+                                row.col(|ui| { ui.label(vec!["Fetch", "Decode", "Execute", "Memory", "Writeback"].get(i).expect("Stage found").to_string()); });
+                                row.col(|ui| {
+                                    let text = match i {
+                                        0 => format!("{:?}", self.writeback.mem_stage.exec_stage.dec_stage.fetch_stage.state()),
+                                        1 => format!("{}", self.writeback.mem_stage.exec_stage.dec_stage.state().1),
+                                        2 => format!("{}", self.writeback.mem_stage.exec_stage.state()),
+                                        3 => format!("{}", self.writeback.mem_stage.state()),
+                                        4 => format!("{}", self.writeback.state()),
+                                        _ => String::new(),
+                                    };
+
+                                    ui.label(text);
+                                });
+                            });
+                        }
+                    });
                     });
                 });
 

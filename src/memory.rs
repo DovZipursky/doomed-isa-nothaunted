@@ -20,7 +20,7 @@ pub mod memory {
     
 
     pub struct Registers {
-        reg: [i32; 35], //pc = reg 33 (index 32), sp = reg 34 (index 33), lr = reg 35 (index 34)
+        pub reg: [i32; 36], //pc = reg 33 (index 32), sp = reg 34 (index 33), lr = reg 35 (index 34)
         pending: [bool; 32],
         cmp_flag: i32
     }
@@ -28,7 +28,7 @@ pub mod memory {
     impl Registers {
         pub fn new() -> Self {
             Registers {
-                reg: [0; 35],
+                reg: [0; 36],
                 pending: [false; 32],
                 cmp_flag: 0
             }
@@ -75,14 +75,14 @@ pub mod memory {
     }
 
     pub struct Cache {
-        data: [[i32; 7]; CACHE_SIZE as usize],
-        main_memory: [[i32; 4]; MEMORY_SIZE as usize],
+        pub data: [[i32; 7]; CACHE_SIZE as usize],
+        pub main_memory: [[i32; 4]; MEMORY_SIZE as usize],
         delay: i32,
         counter: i32,
         servicing: Devices,
         instruction: Option<Instruction>,
         hit: bool,
-        on: bool
+        pub on: bool
     }
 
     impl Cache {
