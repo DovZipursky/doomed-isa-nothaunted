@@ -1,7 +1,7 @@
 pub mod pipeline {
-    use doomed_isa::Memory::memory::GRAPHICS_OFFSET;
+    use doomed_isa::{Memory::memory::GRAPHICS_OFFSET, opcode::opcode::LSL_RI};
 
-    use crate::{instruction::{self, instruction::{Devices, Instruction, InstructionType}}, memory::{self, memory::{Cache, MEMORY_SIZE, Registers, ReturnVal}}, opcode::opcode::{ADD_RI, ADD_RR, CMP_RI, CMP_RR, FDR, FTR, GDR_D, GDR_I, GDR_PC, GTR_D, GTR_I, GTR_PC, HALT, JE_D, JE_I, JE_PC, JG_D, JG_I, JG_PC, JL_D, JL_I, JL_PC, JMP_D, JMP_I, JMP_PC, LDR_D, LDR_I, LDR_PC, POP, PSH, RET, STR_D, STR_I, STR_PC}};
+    use crate::{instruction::{self, instruction::{Devices, Instruction, InstructionType}}, memory::{self, memory::{Cache, MEMORY_SIZE, Registers, ReturnVal}}, opcode::opcode::{ADD_RI, ADD_RR, AND_RI, AND_RR, CMP_RI, CMP_RR, DIV_RI, DIV_RR, FDR, FTR, GDR_D, GDR_I, GDR_PC, GTR_D, GTR_I, GTR_PC, HALT, JE_D, JE_I, JE_PC, JG_D, JG_I, JG_PC, JL_D, JL_I, JL_PC, JMP_D, JMP_I, JMP_PC, LDR_D, LDR_I, LDR_PC, LS_RI, LS_RR, LSL_RR, LSR_RI, LSR_RR, MOD_RI, MOD_RR, MUL_RI, MUL_RR, NOT, OR_RI, OR_RR, POP, PSH, RET, RS_RI, RS_RR, STR_D, STR_I, STR_PC, SUB_RI, SUB_RR, XOR_RI, XOR_RR}};
     use std::cell::RefCell;
     use crate::opcode::opcode;
 
@@ -339,13 +339,46 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
             }
             if let Some(instr) = self.instruction.as_mut() {
                 if instr.instr_type == InstructionType::ALU {
-                    if instr.opcode == ADD_RI as i32  { //if ADD, use values provided by decode
+                    if instr.opcode == ADD_RI as i32   || instr.opcode == ADD_RR as i32{ //if ADD, use values provided by decode
                         instr.result.replace( instr.arg1 +  instr.arg2);
                         
                     }
-                    else if instr.opcode == ADD_RR as i32 {
-                        instr.result.replace( instr.arg1 +  instr.arg2);
+                    else if instr.opcode == SUB_RI as i32 || instr.opcode == SUB_RR as i32 {
+                        instr.result.replace( instr.arg1 -  instr.arg2);
                     }
+                    else if instr.opcode == MUL_RI as i32 || instr.opcode == MUL_RR as i32 {
+                        instr.result.replace( instr.arg1 *  instr.arg2);
+                    }
+                    else if instr.opcode == DIV_RI as i32 || instr.opcode == DIV_RR as i32 {
+                        instr.result.replace( instr.arg1 / instr.arg2);
+                    }
+                    else if instr.opcode == MOD_RI as i32 || instr.opcode == MOD_RR as i32 {
+                        instr.result.replace( instr.arg1 %  instr.arg2);
+                    }
+                    else if instr.opcode == AND_RI as i32 || instr.opcode == AND_RR as i32 {
+                        instr.result.replace( instr.arg1 & instr.arg2);
+                    }
+                    else if instr.opcode == OR_RI as i32 || instr.opcode == OR_RR as i32 {
+                        instr.result.replace( instr.arg1 |  instr.arg2);
+                    }
+                    else if instr.opcode == XOR_RI as i32 || instr.opcode == XOR_RR as i32 {
+                        instr.result.replace( instr.arg1 ^  instr.arg2);
+                    }
+                    else if instr.opcode == LS_RI as i32 || instr.opcode == LS_RR as i32 || instr.opcode == LSL_RI as i32 || instr.opcode == LSL_RR as i32 {
+                        instr.result.replace( instr.arg1 <<  instr.arg2);
+                    }
+                    else if instr.opcode == RS_RI as i32 || instr.opcode == RS_RR as i32 {
+                        instr.result.replace( instr.arg1 >>  instr.arg2);
+                    }
+                    else if instr.opcode == LSR_RI as i32 || instr.opcode == LSR_RR as i32 {
+                        let arg1 = instr.arg1 as u32;
+                        let arg2 = instr.arg2 as u32;
+                        instr.result.replace((arg1 >> arg2) as i32); //could have weird overflow with large values
+                    }
+                    else if instr.opcode == NOT as i32 {
+                        instr.result.replace(!instr.arg1); //rust uses exclamation point for bitwise not? wild
+                    }
+                   
                 }
                 else if  instr.instr_type == InstructionType::Control {
                     if  instr.opcode == JMP_D as i32 || instr.opcode == JMP_I as i32 || instr.opcode == JMP_PC as i32 { //JMP
@@ -599,7 +632,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
 
                 else if opcode >= ALU_RANGE[0] as u32 && opcode <= ALU_RANGE[1] as u32 { //ALU section
                     instr_type = InstructionType::ALU;
-                    if opcode == ADD_RI { //assume reg + immediate to dst arg3
+                    if opcode == ADD_RI || opcode == SUB_RI || opcode == MUL_RI || opcode == DIV_RI || opcode == MUL_RI || opcode == MOD_RI || opcode == AND_RI || opcode == OR_RI || opcode == XOR_RI || opcode == LS_RI || opcode == RS_RI || opcode == LSL_RI || opcode == LSR_RI { //assume reg + immediate to dst arg3
                         arg1 = (((instr_binary as u32) >> REG1_SHIFT) & REG_MASK) as i32;
                         arg2 = (((instr_binary as u32) >> IMMEDIATE2_SHIFT) & IMMEDIATE_MASK) as i32;
                         arg3 = (((instr_binary as u32) >> POST_REG_SHIFT) & REG_MASK) as i32; //no shift since whole structure is taken up
@@ -630,7 +663,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
 
                     }
 
-                    else if opcode == ADD_RR { //register + register 
+                    else if opcode == ADD_RR  || opcode == SUB_RR || opcode == MUL_RR || opcode == DIV_RR || opcode == MOD_RR || opcode == AND_RR || opcode == OR_RR || opcode == XOR_RR || opcode == LS_RR || opcode == RS_RR || opcode == LSL_RR || opcode == LSR_RR { //register + register 
                         arg1 = (((instr_binary as u32) >> REG1_SHIFT) & REG_MASK) as i32;
                         arg2 = (((instr_binary as u32) >> REG2_SHIFT) & REG_MASK) as i32;
                         arg3 = (((instr_binary as u32) >> REG3_SHIFT) & REG_MASK) as i32;
@@ -659,6 +692,31 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                             dec_status = InstructionType::Blocked;
                         }
 
+                    }
+
+                    else if opcode == NOT {
+                        arg1 = (((instr_binary as u32) >> REG1_SHIFT) & REG_MASK) as i32;
+                        arg2 = (((instr_binary as u32) >> REG2_SHIFT) & REG_MASK) as i32;
+                        arg3 = 0;
+
+                        if !reg.is_pending(arg1 as usize) {
+                            instruction = Instruction {
+                                instr_type: instr_type,
+                                device: Devices::Decode,
+                                type_field: type_field as i32,
+                                opcode: opcode as i32,
+                                arg1: arg1,
+                                arg2: arg2,
+                                arg3: arg3,
+                                reg1: 0,
+                                reg2: 0,
+                                reg3: 0,
+                                result: result,
+                                pc: pc
+                            };
+                             self.instruction = None;
+                             self.dec_instruction = Some(instruction);
+                        }
                     }
                 }
 
@@ -1029,7 +1087,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                     return Some(instr); //pass it on
                 }
                 if instr.instr_type == InstructionType::ALU {
-                    if instr.opcode == ADD_RR as i32 {
+                    if instr.opcode == ADD_RR as i32 || instr.opcode == SUB_RR as i32 || instr.opcode == MUL_RR as i32 || instr.opcode ==  DIV_RR as i32 || instr.opcode == MOD_RR as i32 || instr.opcode == AND_RR as i32 || instr.opcode == OR_RR as i32 || instr.opcode == XOR_RR as i32 || instr.opcode == LS_RR as i32 || instr.opcode == RS_RR as i32 || instr.opcode == LSL_RR as i32 || instr.opcode == LSR_RR as i32 {
                         if  !reg.is_pending(instr.arg1 as usize) && !reg.is_pending(instr.arg2 as usize) {
                             let reg1 = instr.arg1;
                             let reg2 = instr.arg2;
@@ -1062,7 +1120,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                             });
                         }
                     }
-                    else if instr.opcode == ADD_RI as i32 {
+                    else if instr.opcode == ADD_RI as i32 || instr.opcode == SUB_RI as i32 || instr.opcode == MUL_RI as i32 || instr.opcode == DIV_RI as i32 || instr.opcode == MUL_RI as i32 || instr.opcode == MOD_RI as i32 || instr.opcode == AND_RI as i32 || instr.opcode == OR_RI as i32 || instr.opcode == XOR_RI as i32 || instr.opcode == LS_RI as i32 || instr.opcode == RS_RI as i32 || instr.opcode == LSL_RI as i32 || instr.opcode == LSR_RI as i32 {
                         if  !reg.is_pending(instr.arg1 as usize)  { //arg2 is immediate
                             let reg1 = instr.arg1;
                             let reg2 = -1;
@@ -1094,6 +1152,42 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                             });
                         }
                         
+                    }
+                    else if instr.opcode == NOT as i32 {
+                        if !reg.is_pending(instr.arg1 as usize) {
+                            let reg1 = instr.arg1;
+                            let reg2 = -1;
+                            let reg3 = instr.arg3;
+
+                            instr.arg1 = reg.get_gp(instr.arg1 as usize);
+                            instr.reg1 = reg1;
+                            instr.reg2 = reg2;
+                            instr.reg3 = reg3;
+
+                            reg.update_pending(instr.arg3 as usize, true);
+                            let ret_instr = self.dec_instruction.take();
+                            self.dec_instruction = None;
+                            return Some(instr);
+
+
+                        }
+                        else {
+                             self.dec_instruction = Some(instr);
+                            return Some(Instruction {
+                                    instr_type: InstructionType::Stall,
+                                    device: Devices::Decode,
+                                    type_field: -1,
+                                    opcode: -1,
+                                    arg1: -1,
+                                    arg2: -1,
+                                    arg3: -1,
+                                    reg1: 0,
+                                    reg2: 0,
+                                    reg3: 0,
+                                    result: None,
+                                    pc: -1
+                            });
+                        }
                     }
                     else {
                             self.dec_instruction = Some(instr);
