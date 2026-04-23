@@ -1486,7 +1486,14 @@ impl eframe::App for Simulator {
                 });
 
                 columns[2].vertical(|ui| {
+                    let available_height = ui.available_height();
+                    let half_height = available_height / 2.0;
+
                     ui.label("Cache");
+                    ui.allocate_ui_with_layout(
+        egui::vec2(ui.available_width(), half_height),
+                    egui::Layout::top_down(egui::Align::Min),
+        |ui| {
                     ScrollArea::vertical().id_salt("third area").show(ui, |ui| {
                     TableBuilder::new(ui)
                     .striped(true)
@@ -1506,9 +1513,21 @@ impl eframe::App for Simulator {
                             });
                         }
                     });
-                    });
+                    
+                    }
+                    
+                );
+                },
+                );
                     ui.separator();
+                    
+                    
                     ui.label("Pipeline");
+
+                    ui.allocate_ui_with_layout(
+        egui::vec2(ui.available_width(), half_height),
+                    egui::Layout::top_down(egui::Align::Min),
+        |ui| {
                     ScrollArea::vertical().id_salt("fourth area").show(ui, |ui| {
                     TableBuilder::new(ui)
                     .striped(true)
@@ -1540,6 +1559,8 @@ impl eframe::App for Simulator {
                         }
                     });
                     });
+                    },
+                );
                 });
 
                 // Add pipeline state display
