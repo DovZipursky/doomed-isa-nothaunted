@@ -51,7 +51,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
     }
 
     pub struct Controler {
-        on: bool,
+        pub on: bool,
         processing: i32
     }
 

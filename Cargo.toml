@@ -4,4 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+eframe = "0.34.1"
+egui = "0.34.1"
+egui_extras = "0.34.1"
 strum_macros = "0.28.0"
