@@ -84,8 +84,8 @@ pub mod memory {
     }
 
     pub struct Cache {
-        data: [[i32; 7]; CACHE_SIZE as usize],
-        main_memory: [[i32; 4]; MEMORY_SIZE as usize],
+        pub data: [[i32; 7]; CACHE_SIZE as usize],
+        pub main_memory: [[i32; 4]; MEMORY_SIZE as usize],
         frame_buffer: [[i32; 4]; (GRAPHICS_OFFSET / 4) as usize],
         delay: i32,
         counter: i32,

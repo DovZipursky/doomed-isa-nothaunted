@@ -45,13 +45,13 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
 
 // fn main() {
 
-    let type_field:u32 = 0;
-    let opcode = ADD_RI;
-    let reg1 = 2;
-    let reg2 = 1;
-    let reg3 = 2;
-    let imm2: u32 = 1;
-    let imm3: u32 = 0;
+    // let type_field:u32 = 0;
+    // let opcode = ADD_RI;
+    // let reg1 = 2;
+    // let reg2 = 1;
+    // let reg3 = 2;
+    // let imm2: u32 = 1;
+    // let imm3: u32 = 0;
 
 //      let instr_binary = (type_field << TYPE_SHIFT)
 //                 | (opcode << OPCODE_SHIFT)
@@ -103,9 +103,9 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
     
     //test_jmp_ret();
 
-    test_pc_rel();
+//     test_pc_rel();
     
-}
+// }
 
 pub fn test_pc_rel() {
     let i0 = instr_fields_to_decimal(0, ADD_RI, 2, 5, 2, InstructionType::ALU);
@@ -1352,7 +1352,7 @@ struct Simulator {
 
 impl Default for Simulator {
     fn default() -> Self {
-        let mut cache = Cache::new([[-1; 7]; 4], [[-1; 4]; 64]);
+        let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
         let mut registers = Registers::new();
         let mut ctrl = Controler::new();
         let filename = String::new();
@@ -1474,7 +1474,7 @@ impl eframe::App for Simulator {
                         header.col(|ui| { ui.label("Value"); });
                     })
                     .body(|mut body| {
-                        for i in 0..64 {
+                        for i in 0..1000 {
                             body.row(20.0, |mut row| {
                                 row.col(|ui| { 
                                     ui.label(format!("0x{i:X}")); 
@@ -1499,7 +1499,7 @@ impl eframe::App for Simulator {
                         header.col(|ui| { ui.label("Value"); });
                     })
                     .body(|mut body| {
-                        for i in 0..4 {
+                        for i in 0..250 {
                             body.row(20.0, |mut row| {
                                 row.col(|ui| { ui.label(format!("0x{i:X}")); });
                                 row.col(|ui| { ui.label(format!("{:?}", self.cache.data[i])); });
