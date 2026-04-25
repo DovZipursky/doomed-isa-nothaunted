@@ -2,7 +2,7 @@ pub mod memory {
     use std::{collections::LinkedList, fs};
 
     use crate::instruction::instruction::{Devices, Instruction};
-    use crate::opcode::opcode::{FDR, FTR, GDR_D, GDR_I, GTR_D, GTR_I, LDR_D, LDR_I, LDR_PC, POP, PSH, STR_D, STR_I, STR_PC};
+    use crate::opcode::opcode::{FDR, FTR, GDR_D, GDR_I, GTR_D, GTR_I, LDR_D, LDR_I, LDR_PC, POP, POP_LR, PSH, PSH_LR, STR_D, STR_I, STR_PC};
 
     const CACHE_SIZE: i32 = 250;
     pub const MEMORY_SIZE: i32 = 1000;
@@ -25,19 +25,19 @@ pub mod memory {
     
 
     pub struct Registers {
-        pub reg: [i32; 36], //pc = reg 33 (index 32), sp = reg 34 (index 33), lr = reg 35 (index 34)
-        pending: [bool; 32],
+        pub reg: [i32; 35], //pc = reg 33 (index 32), sp = reg 34 (index 33), lr = reg 35 (index 34)
+        pending: [bool; 35],
         cmp_flag: i32
     }
 
     impl Registers {
         pub fn new() -> Self {
             let mut reg = [0; 35];
-            reg[33] = STACK_INIT;
+            //reg[33] = STACK_INIT;
 
             Registers {
-                reg: [0; 36],
-                pending: [false; 32],
+                reg: [0; 35],
+                pending: [false; 35],
                 cmp_flag: 0
             }
         }
@@ -132,7 +132,7 @@ pub mod memory {
                 
                     //expect arg1 to be an address 
 
-                if instr.opcode == LDR_D as i32 || instr.opcode == GDR_D as i32 || instr.opcode == POP as i32 || instr.opcode ==  LDR_PC as i32 { //if register direct
+                if instr.opcode == LDR_D as i32 || instr.opcode == GDR_D as i32 || instr.opcode == POP as i32 || instr.opcode == POP_LR as i32 || instr.opcode ==  LDR_PC as i32 { //if register direct
                     //check hit/miss
                     let index = (instr.arg1 / 4) % CACHE_SIZE;
                     let tag = instr.arg1 / (4 * CACHE_SIZE);
@@ -192,7 +192,7 @@ pub mod memory {
             
                     //expect arg2 to be an address
                     
-                else if instr.opcode == STR_D as i32  || instr.opcode == GTR_D as i32 ||instr.opcode == PSH as i32  || instr.opcode == STR_PC as i32 { //if register direct
+                else if instr.opcode == STR_D as i32  || instr.opcode == GTR_D as i32 ||instr.opcode == PSH as i32  || instr.opcode == PSH_LR as i32 || instr.opcode == STR_PC as i32 { //if register direct
                     //let index =  instr.arg2 % CACHE_SIZE; //map address with offset to cache index
                     //let tag = instr.arg2 >> (32 - TAG_LENGTH);
                     self.delay = MEMORY_DELAY; //due to write through
@@ -246,7 +246,7 @@ pub mod memory {
                     //if LDR, simply return data
                     //TODO: !self.on
                         
-                    if instr.opcode == LDR_D as i32 ||  instr.opcode == GDR_D as i32 || instr.opcode == POP as i32 || instr.opcode == LDR_PC as i32 { //if register direct
+                    if instr.opcode == LDR_D as i32 ||  instr.opcode == GDR_D as i32 || instr.opcode == POP as i32 || instr.opcode == POP_LR as i32 || instr.opcode == LDR_PC as i32 { //if register direct
                         if !self.on {
                             let index = instr.arg1 / 4; 
                             let offset = instr.arg1 % 4;
@@ -318,7 +318,7 @@ pub mod memory {
                     }
 
                         
-                    else if instr.opcode == STR_D as i32 || instr.opcode == GTR_D as i32 || instr.opcode == PSH as i32 || instr.opcode == STR_PC as i32  { //assumes that memory and cache are synched
+                    else if instr.opcode == STR_D as i32 || instr.opcode == GTR_D as i32 || instr.opcode == PSH as i32 || instr.opcode == PSH_LR as i32 || instr.opcode == STR_PC as i32  { //assumes that memory and cache are synched
                             
                             //if register direct
                             let addr = instr.arg2;

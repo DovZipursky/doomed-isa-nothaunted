@@ -1,7 +1,7 @@
 pub mod pipeline {
     use doomed_isa::{Memory::memory::GRAPHICS_OFFSET, opcode::opcode::LSL_RI};
 
-    use crate::{instruction::{self, instruction::{Devices, Instruction, InstructionType}}, memory::{self, memory::{Cache, MEMORY_SIZE, Registers, ReturnVal}}, opcode::opcode::{ADD_RI, ADD_RR, AND_RI, AND_RR, CMP_RI, CMP_RR, DIV_RI, DIV_RR, FDR, FTR, GDR_D, GDR_I, GDR_PC, GTR_D, GTR_I, GTR_PC, HALT, JE_D, JE_I, JE_PC, JG_D, JG_I, JG_PC, JL_D, JL_I, JL_PC, JMP_D, JMP_I, JMP_PC, LDR_D, LDR_I, LDR_PC, LS_RI, LS_RR, LSL_RR, LSR_RI, LSR_RR, MOD_RI, MOD_RR, MUL_RI, MUL_RR, NOT, OR_RI, OR_RR, POP, PSH, RET, RS_RI, RS_RR, STR_D, STR_I, STR_PC, SUB_RI, SUB_RR, XOR_RI, XOR_RR}};
+    use crate::{instruction::{self, instruction::{Devices, Instruction, InstructionType}}, memory::{self, memory::{Cache, MEMORY_SIZE, Registers, ReturnVal, STACK_INIT}}, opcode::opcode::{ADD_RI, ADD_RR, AND_RI, AND_RR, CMP_RI, CMP_RR, DIV_RI, DIV_RR, FDR, FTR, GDR_D, GDR_I, GDR_PC, GTR_D, GTR_I, GTR_PC, HALT, JE_D, JE_I, JE_PC, JG_D, JG_I, JG_PC, JL_D, JL_I, JL_PC, JMP_D, JMP_I, JMP_PC, LDR_D, LDR_I, LDR_PC, LS_RI, LS_RR, LSL_RR, LSR_RI, LSR_RR, MOD_RI, MOD_RR, MUL_RI, MUL_RR, NOT, OR_RI, OR_RR, POP, POP_LR, PSH, PSH_LR, RET, RS_RI, RS_RR, STR_D, STR_I, STR_PC, SUB_RI, SUB_RR, XOR_RI, XOR_RR}};
     use std::cell::RefCell;
     use crate::opcode::opcode;
 
@@ -15,6 +15,7 @@ const OPCODE_SHIFT: u32 = 25;
 const REG1_SHIFT: u32 = 20;
 const REG2_SHIFT: u32 = 15;
 const REG3_SHIFT: u32 = 10;
+const IMMEDIATE1_SHIFT: u32 = 13;
 const IMMEDIATE2_SHIFT: u32 = 8;
 const POST_REG_SHIFT: u32 = 3;
 const IMMEDIATE3_SHIFT: u32 = 3;
@@ -111,13 +112,13 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                         //with STR registers are not written to, but update src as not pending
                         reg.update_pending(instr.reg1 as usize, false);
                     }
-                    else if instr.opcode == PSH as i32 {
+                    else if instr.opcode == PSH as i32 || instr.opcode == PSH_LR as i32 {
                         let new_stack = reg.get_gp(33) - 1; //psh stores at sp, so now decrement to new empty spot
                         reg.update_gp(33, new_stack);
                         reg.update_pending(instr.reg1 as usize, false);
 
                     }
-                    else if instr.opcode == POP as i32 {
+                    else if instr.opcode == POP as i32 || instr.opcode == POP_LR as i32 {
                         let new_stack = reg.get_gp(33) + 1; //pop loads from sp, raise stack back up
                         reg.update_gp(33, new_stack);
                         reg.update_gp(instr.reg2 as usize, instr.result.unwrap());
@@ -386,11 +387,11 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                     }
                     else if instr.opcode == JL_D as i32 || instr.opcode == JL_I as i32 || instr.opcode == JL_PC as i32 {//JL
                         if reg.get_flags() == -1 {
-                            if instr.type_field == 1 {
+                            if instr.type_field == 1  && (instr.opcode == JL_I as i32 || instr.opcode == JL_PC as i32) {
                                 instr.result.replace(instr.arg1 + reg.get_gp(instr.reg2 as usize));
                             }
                             else {
-                                instr.result.replace(instr.arg1);
+                                instr.result.replace(instr.arg1); //no offset or immediate 
                             }
                         
                         }
@@ -401,7 +402,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                     }
                     else if instr.opcode == JE_D as i32 || instr.opcode == JE_I as i32 || instr.opcode == JE_PC as i32 {//JL
                         if reg.get_flags() == 0 {
-                            if instr.type_field == 1 {
+                            if instr.type_field == 1  && (instr.opcode == JE_I as i32 || instr.opcode == JE_PC as i32) {
                                 instr.result.replace(instr.arg1 + reg.get_gp(instr.reg2 as usize));
                             }
                             else {
@@ -415,7 +416,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                     }
                     else if instr.opcode == JG_D as i32 || instr.opcode == JG_I as i32 || instr.opcode == JG_PC as i32 {//JL
                         if reg.get_flags() == 1 {
-                            if instr.type_field == 1 {
+                            if instr.type_field == 1 && (instr.opcode == JG_I as i32 || instr.opcode == JG_PC as i32) {
                                 instr.result.replace(instr.arg1 + reg.get_gp(instr.reg2 as usize));
                             }
                             else {
@@ -467,11 +468,11 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                         let graphics_addr = (instr.arg2 + GRAPHICS_OFFSET) % (MEMORY_SIZE * 4);
                         instr.arg2 = graphics_addr + instr.arg3;
                     }
-                    else if instr.opcode == PSH as i32 {
-                        instr.arg2 = reg.get_gp(instr.reg2 as usize) - 1; //for psh, stack is dst so store there + 1, WB makes new pointer official later
+                    else if instr.opcode == PSH as i32 || instr.opcode == PSH_LR as i32 {
+                        instr.arg2 = reg.get_gp(instr.reg2 as usize) - 1 + STACK_INIT; //for psh, stack is dst so store there - 1 offset by stack base, WB makes new pointer official later 
                     }
-                    else if instr.opcode == POP as i32 {
-                        instr.arg1 = reg.get_gp(instr.reg1 as usize); //for pop, stack is src so load from there
+                    else if instr.opcode == POP as i32 || instr.opcode == POP_LR as i32 {
+                        instr.arg1 = reg.get_gp(instr.reg1 as usize) + STACK_INIT; //for pop, stack is src so load from there
                     }
                     else {
                         //whatever
@@ -723,10 +724,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                 else if opcode >= CONTROL_RANGE[0] as u32 && opcode <= CONTROL_RANGE[1] as u32 {
                     instr_type = InstructionType::Control;
 
-                    if opcode == JMP_D || opcode == JMP_I  
-                    || opcode == JL_D || opcode == JL_I 
-                    || opcode == JE_D || opcode == JE_I 
-                    || opcode == JG_D || opcode == JG_I  {  //JMP, JE, JL, JG 
+                    if opcode == JMP_I  || opcode == JL_I || opcode == JE_I  || opcode == JG_I  {  //JMP, JE, JL, JG 
                         //assume arg1 register src, arg2 register offset
                         arg1 = (((instr_binary as u32) >> REG1_SHIFT) & REG_MASK) as i32;
                         arg2 = (((instr_binary as u32) >> REG2_SHIFT) & REG_MASK) as i32;
@@ -755,6 +753,29 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                             dec_status = InstructionType::Blocked;
                         }
 
+
+                    }
+                    else if opcode == JMP_D || opcode == JL_D || opcode == JE_D || opcode == JG_D {
+                        arg1 = (((instr_binary as u32) >> IMMEDIATE1_SHIFT) & IMMEDIATE_MASK) as i32;
+                        arg2 = 0;
+                        arg3 = 0;
+                        //immediate address so no src to check pending
+                        instruction = Instruction {
+                                instr_type: instr_type,
+                                device: Devices::Decode,
+                                type_field: type_field as i32,
+                                opcode: opcode as i32,
+                                arg1: arg1,
+                                arg2: arg2,
+                                arg3: 0,
+                                reg1: 0,
+                                reg2: 0,
+                                reg3: 0,
+                                result: result,
+                                pc: pc
+                            };
+                            self.instruction = None;
+                            self.dec_instruction = Some(instruction);
 
                     }
                     else if opcode == JMP_PC || opcode == JL_PC || opcode == JE_PC || opcode == JG_PC {
@@ -979,6 +1000,37 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                              dec_status = InstructionType::Blocked;
                         }
                     }
+                    else if opcode == PSH_LR {
+                        arg1 = 34; //register being pushed, LR register
+                        arg2 = 33; //sp register for "dst"
+                        arg3 = 0; //no offset
+                        let reg1 = arg1;
+                        let reg2 = arg2;
+                        let reg3 = arg3;
+
+                        if !reg.is_pending(reg1 as usize) {
+                            instruction = Instruction {
+                                instr_type: instr_type,
+                                device: Devices::Memory,
+                                type_field: type_field as i32,
+                                opcode: opcode as i32,
+                                arg1: arg1,
+                                arg2: arg2,
+                                arg3: arg3,
+                                reg1: reg1,
+                                reg2: reg2,
+                                reg3: reg3,
+                                result: None,
+                                pc: pc
+                            };
+                            self.instruction = None;
+                            self.dec_instruction = Some(instruction);
+                        }
+
+                        else {
+                             dec_status = InstructionType::Blocked;
+                        }
+                    }
                     else if opcode == POP {
                         //arg1 is src so SP, arg2 is register to be restored arg3 is nothing
                         arg1 = 33; 
@@ -1012,12 +1064,46 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                         }
 
                     }
+                    else if opcode == POP_LR {
+                        //arg1 is src so SP, arg2 is register to be restored arg3 is nothing
+                        arg1 = 33; 
+                        arg2 = 34; //restore LR register
+                        arg3 = 0; //no offset
+                        let reg1 = arg1;
+                        let reg2 = arg2;
+                        let reg3 = arg3;
+
+                        if !reg.is_pending(reg1 as usize) { //if stack is about to be written to, don't do it
+                            instruction = Instruction {
+                                instr_type: instr_type,
+                                device: Devices::Memory,
+                                type_field: type_field as i32,
+                                opcode: opcode as i32,
+                                arg1: arg1,
+                                arg2: arg2,
+                                arg3: arg3,
+                                reg1: reg1,
+                                reg2: reg2,
+                                reg3: reg3,
+                                result: None,
+                                pc: pc
+                            };
+                            self.instruction = None;
+                            self.dec_instruction = Some(instruction);
+                        }
+
+                        else {
+                             dec_status = InstructionType::Blocked;
+                        }
+                    }
                     else { //some sort of normal load or store
                         //assume arg1 src and arg2 dst registers with an immediate offset (12 bits) arg3
+                        //for STR: arg 1 src is is what is being stored, arg2 dst is where is being stored
                         arg1 = (((instr_binary as u32) >> REG1_SHIFT) & REG_MASK) as i32;
                         arg2 = (((instr_binary as u32) >> REG2_SHIFT) & REG_MASK) as i32;
                         arg3 = ((instr_binary as u32 >> IMMEDIATE3_SHIFT) & IMMEDIATE_MASK) as i32;
 
+                        //check if thing being stored/loaded is pending
                         if !reg.is_pending(arg1 as usize) {
                             instruction = Instruction {
                                 instr_type: instr_type,
@@ -1209,10 +1295,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                     
                 }
                 else if instr.instr_type == InstructionType::Control {
-                    if instr.opcode == JMP_D as i32|| instr.opcode == JMP_I as i32 
-                    || instr.opcode == JL_D as i32 || instr.opcode == JL_I as i32
-                    || instr.opcode == JE_D as i32 || instr.opcode == JE_I as i32
-                    || instr.opcode == JG_D as i32 || instr.opcode == JG_I as i32 {
+                    if  instr.opcode == JMP_I as i32  || instr.opcode == JL_I as i32 || instr.opcode == JE_I as i32 || instr.opcode == JG_I as i32 {
                         if !reg.is_pending(instr.arg1 as usize) && !reg.is_pending(instr.arg2 as usize) {
                                 let reg1 = instr.arg1;
                                 let reg2 = instr.arg2;
@@ -1232,6 +1315,20 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                                 self.dec_instruction = None;
                                 //self.instruction = None;
                                 return Some(instr);
+                        }
+                        else if instr.opcode == JMP_D as i32 || instr.opcode == JL_D as i32 || instr.opcode == JG_D as i32 || instr.opcode == JE_D as i32 {
+                            let reg1 = 0;
+                            let reg2 = 0;
+                            let reg3 = 0;
+
+                            instr.reg1 = reg1;
+                            instr.reg2 = reg2;
+                            instr.reg3 = reg3;
+
+                             self.dec_instruction = None;
+                            //self.instruction = None;
+                            return Some(instr);
+
                         }
                         else {
                                 self.dec_instruction = Some(instr);
@@ -1388,7 +1485,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                 }
 
                 else if instr.instr_type == InstructionType::Memory {
-                    if !reg.is_pending(instr.arg1 as usize) {
+                    if !reg.is_pending(instr.arg1 as usize) && !reg.is_pending(instr.arg2 as usize ) { //clear to do load/store
                         if instr.opcode == LDR_D  as i32 || instr.opcode == LDR_I as i32 || instr.opcode == GDR_D as i32 || instr.opcode == GDR_I as i32 { //if LDR
                             reg.update_pending(instr.arg2 as usize, true); //set dst addr to pending so it isn't overwritten
                             let reg1 = instr.arg1; 
@@ -1404,7 +1501,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                             return Some(instr);
                         }
                         else if instr.opcode == STR_D as i32 || instr.opcode == STR_I as i32 || instr.opcode == GTR_D as i32 || instr.opcode == GTR_I as i32 { //assume STR else for now
-                            //no write, so no update pending
+                            //no write to reg, so no update pending
                             let reg1 = instr.arg1; 
                             let reg2 = instr.arg2;
                             let reg3 = instr.arg3;
@@ -1450,14 +1547,14 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
                             self.dec_instruction = None;
                             return Some(instr);
                         }
-                        else if instr.opcode == POP as i32 {
+                        else if instr.opcode == POP as i32 || instr.opcode == POP_LR as i32 {
                             instr.arg1 = reg.get_gp(instr.arg1 as usize);
                             instr.arg2 = reg.get_gp(instr.arg2 as usize);
                             reg.update_pending(instr.reg2 as usize, true); //set reg being written to as pending
                             self.dec_instruction = None;
                             return Some(instr);
                         }
-                        else if instr.opcode == PSH as i32 || instr.opcode == POP as i32 { //once 
+                        else if instr.opcode == PSH as i32 || instr.opcode == PSH_LR as i32 { //no pending registers for store type ops
                             instr.arg1 = reg.get_gp(instr.arg1 as usize);
                             instr.arg2 = reg.get_gp(instr.arg2 as usize);
                             self.dec_instruction = None;
@@ -1573,7 +1670,7 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
             }
 
             if !ctrl.status() && ctrl.in_process() > 0 {
-                return return (InstructionType::Stall, -1, -1);
+                return (InstructionType::Stall, -1, -1);
             }
 
             if self.load_instruction.is_none() {
