@@ -66,6 +66,8 @@ pub mod opcode {
     pub const GTR_PC: u32 = 52; //Done
     pub const PSH: u32 = 53; //Done
     pub const POP: u32 = 55; //Done
+    pub const PSH_LR: u32 = 54;
+    pub const POP_LR: u32 = 56;
     pub const FDR: u32 = 58; //frame load, pulls graphics memory into frame buffer //Done
     pub const FTR: u32 = 59; //frame store, puts frame buffer into graphics memory //Done
 

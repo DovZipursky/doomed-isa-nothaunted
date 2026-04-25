@@ -15,7 +15,7 @@ use egui_extras::{Column, TableBuilder};
 
 use crate::{instruction::instruction::{Devices, Instruction, InstructionType}, 
 memory::memory::{Cache, Registers, ReturnVal}, 
-opcode::opcode::{FDR, FTR, RET, PSH, POP, LDR_PC, STR_PC, GDR_D, GDR_I, GDR_PC, GTR_D, GTR_I, GTR_PC, HALT, JG_D, JG_I, JG_PC, JL_I, JL_PC, JE_D, JE_I, JE_PC, JMP_D, JMP_I, JMP_PC, ADD_RI, AND_RI, CMP_RI, CMP_RR, DIV_RI, JL_D, LDR_D, LDR_I, LS_RI, LSL_RI, LSR_RI, MOD_RI, MUL_RI, OR_RI, RS_RI, STR_D, STR_I, SUB_RI, XOR_RI}, pipeline::pipeline::Controler};
+opcode::opcode::{ADD_RI, ADD_RR, AND_RI, CMP_RI, CMP_RR, DIV_RI, FDR, FTR, GDR_D, GDR_I, GDR_PC, GTR_D, GTR_I, GTR_PC, HALT, JE_D, JE_I, JE_PC, JG_D, JG_I, JG_PC, JL_D, JL_I, JL_PC, JMP_D, JMP_I, JMP_PC, LDR_D, LDR_I, LDR_PC, LS_RI, LSL_RI, LSR_RI, MOD_RI, MUL_RI, OR_RI, POP, POP_LR, PSH, PSH_LR, RET, RS_RI, STR_D, STR_I, STR_PC, SUB_RI, XOR_RI}, pipeline::pipeline::Controler};
 use crate::{pipeline::pipeline::{Decode, Memory, Fetch, Execute, Writeback}};
 
 use std::cell::RefCell;
@@ -34,6 +34,7 @@ const OPCODE_SHIFT: u32 = 25;
 const REG1_SHIFT: u32 = 20;
 const REG2_SHIFT: u32 = 15;
 const REG3_SHIFT: u32 = 10;
+const IMMEDIATE1_SHIFT: u32 = 13;
 const IMMEDIATE2_SHIFT: u32 = 8;
 const POST_REG_SHIFT: u32 = 3;
 const IMMEDIATE3_SHIFT: u32 = 3;
@@ -829,7 +830,14 @@ pub fn instr_fields_to_decimal(type_field: u32, opcode: u32, arg1: u32, arg2: u3
                 | (arg2 << REG2_SHIFT)
                 | (arg3 << REG3_SHIFT);
             }
-        else { //some jump
+        else if opcode == JMP_D || opcode == JL_D || opcode == JE_D || opcode == JG_D { //expect immediate address for direct jump
+            return (type_field << TYPE_SHIFT)
+                | (opcode << OPCODE_SHIFT)
+                | (arg1 << IMMEDIATE1_SHIFT)
+                | (arg2 << IMMEDIATE2_SHIFT) //will be
+                | (arg3 << POST_REG_SHIFT);
+        }
+        else { //some register jump
             return (type_field << TYPE_SHIFT)
                 | (opcode << OPCODE_SHIFT)
                 | (arg1 << REG1_SHIFT)
@@ -1356,6 +1364,22 @@ impl Default for Simulator {
         let mut mem_stage = Memory::new(exec_stage);
         let mut writeback = Writeback::new(mem_stage);
         let mut cycles: u32 = 0;
+        let i1 = instr_fields_to_decimal(0, ADD_RI, 1, 1, 1, InstructionType::ALU);
+        let i2 = instr_fields_to_decimal(0, ADD_RR, 1, 1, 2, InstructionType::ALU);
+        let i3 = instr_fields_to_decimal(0, ADD_RR, 2, 2, 3, InstructionType::ALU);
+        let i4 = instr_fields_to_decimal(0, ADD_RI, 4, 20, 4, InstructionType::ALU); //STR addr
+        let i5 = instr_fields_to_decimal(0, STR_D, 1, 4, 0, InstructionType::Memory);
+        let i6 = instr_fields_to_decimal(0, ADD_RI, 4, 1, 4, InstructionType::ALU);
+        let i7 = instr_fields_to_decimal(0, STR_D, 2, 4, 0, InstructionType::Memory);
+        let i8 = instr_fields_to_decimal(0, ADD_RI, 4, 1, 4, InstructionType::ALU); 
+        let i9 = instr_fields_to_decimal(0, STR_D, 3, 4, 0, InstructionType::Memory); 
+        let i10 = instr_fields_to_decimal(0, PSH_LR, 0, 0, 0, InstructionType::Memory); //put addr 12 into R1
+        let i11 = instr_fields_to_decimal(0, POP_LR, 0, 0, 0, InstructionType::Memory); //less than
+        let i12 = instr_fields_to_decimal(0,STR_I,1,4,0, InstructionType::Memory); //should jump to immidate 4
+        let i13 = instr_fields_to_decimal(0, HALT, 0, 0, 0, InstructionType::Control);
+        create_binary_file("src/programs/timing-test.bin", &[i1,i2,i3,i4,i5,i6,i7,i8,i9,i10,i11,i12,i13,0,0,0,0,0,0,0]);
+        
+        
         Self {
             cache,
             registers,
