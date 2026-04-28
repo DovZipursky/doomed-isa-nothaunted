@@ -4,9 +4,10 @@ pub mod memory {
     use crate::instruction::instruction::{Devices, Instruction};
     use crate::opcode::opcode::{FDR, FTR, GDR_D, GDR_I, GTR_D, GTR_I, LDR_D, LDR_I, LDR_PC, POP, POP_LR, PSH, PSH_LR, STR_D, STR_I, STR_PC};
 
-    const CACHE_SIZE: i32 = 250;
-    pub const MEMORY_SIZE: i32 = 1000;
-    pub const GRAPHICS_OFFSET: i32 = ((FRAME_WIDTH * FRAME_HEIGHT) / 32); //includes the size given by line width
+    pub const CACHE_SIZE: i32 = 1000;
+    pub const MEMORY_SIZE: i32 = 65536; //address space of 262,144 values, all of which are 4 bytes each. 
+    pub const GRAPHICS_OFFSET: i32 = (((FRAME_WIDTH * FRAME_HEIGHT))); //Takes up 19,200 lines of memory
+    //includes the size given by line width 
     pub const STACK_INIT: i32 = ((GRAPHICS_OFFSET / 4) - 1) * 4; //set inital stack to top of memory below graphics memory
     
     const CACHE_DELAY: i32 = 0;                     
@@ -171,7 +172,7 @@ pub mod memory {
                         self.delay = MEMORY_DELAY; //base delay is memory to get indirect address
                     }
 
-                    let addr = self.main_memory[(main_addr  / 4) as usize][(main_addr % 4) as usize]; //find address in the memory cell specified by the register and add offset
+                    let addr = self.main_memory[((main_addr  / 4) % (MEMORY_SIZE * 4))as usize][(main_addr % 4) as usize]; //find address in the memory cell specified by the register and add offset
                     
                     let index = (addr / 4) % CACHE_SIZE; //find mapped location
                     let tag = addr / (4 * CACHE_SIZE);
@@ -272,7 +273,7 @@ pub mod memory {
                             //self.counter = 0;
                             //self.servicing = Devices::Free;
                             //return ReturnVal::Data(data) 
-                            return self.finish_instruction((instr.arg1 / 4) % CACHE_SIZE, instr.arg1 % 4);
+                            return self.finish_instruction((instr.arg1 / 4), instr.arg1 % 4);
                         }
                         
                     }
@@ -281,7 +282,7 @@ pub mod memory {
                         if !self.on {
                             let main_index = instr.arg1 / 4; 
                             let main_offset = instr.arg1 % 4;
-                            let addr = self.main_memory[(main_index / 4) as usize][(main_offset % 4) as usize];
+                            let addr = self.main_memory[((main_index / 4) % (MEMORY_SIZE * 4))as usize][(main_offset % 4) as usize];
 
                             return self.finish_instruction(addr / 4, addr % 4);
 
@@ -289,7 +290,7 @@ pub mod memory {
 
                         else if self.hit {
                             let main_addr = instr.arg1; //get address from memory, delay already accounted for if any
-                            let addr = self.main_memory[(main_addr / 4) as usize][(main_addr % 4) as usize]; 
+                            let addr = self.main_memory[((main_addr / 4) % (MEMORY_SIZE * 4))as usize][(main_addr % 4) as usize]; 
                             let index = (addr / 4) % CACHE_SIZE;
                             let offset = addr % 4; 
                          
@@ -298,8 +299,8 @@ pub mod memory {
                         
                         else {
                             let main_addr = instr.arg1; //get from memory, delay already accounted for if any
-                            let addr = self.main_memory[(main_addr / 4) as usize][(main_addr % 4) as usize]; 
-                            let data = self.main_memory[(addr / 4) as usize];
+                            let addr = self.main_memory[((main_addr / 4)% (MEMORY_SIZE * 4)) as usize][(main_addr % 4) as usize]; 
+                            let data = self.main_memory[((addr / 4) % (MEMORY_SIZE * 4))as usize];
 
                             self.data[((addr / 4) % CACHE_SIZE) as usize][3] = data[0]; //put data in cache for later
                             self.data[((addr / 4) % CACHE_SIZE) as usize][4] = data[1];
@@ -311,7 +312,7 @@ pub mod memory {
                             //self.counter = 0;
                             //self.servicing = Devices::Free;
                             //return ReturnVal::Data(data) 
-                            return self.finish_instruction((addr / 4) % CACHE_SIZE, addr % 4);
+                            return self.finish_instruction((addr / 4), addr % 4);
                         }
                         
 
@@ -325,7 +326,7 @@ pub mod memory {
                             let index = (addr / 4) % CACHE_SIZE;
                             
                             if !self.on { //just update and return
-                                self.main_memory[(addr / 4) as usize][(addr % 4) as usize] = instr.arg1;
+                                self.main_memory[((addr / 4)% (MEMORY_SIZE * 4)) as usize][(addr % 4) as usize] = instr.arg1;
                                 return self.finish_instruction(addr / 4, addr % 4);
                             }
 
@@ -345,7 +346,7 @@ pub mod memory {
 
                             }
                             
-                            self.main_memory[(addr / 4) as usize][(addr % 4) as usize] = instr.arg1; //write through
+                            self.main_memory[((addr / 4)% (MEMORY_SIZE * 4)) as usize][(addr % 4) as usize] = instr.arg1; //write through
                             self.data[index as usize][((addr % 4) + 3) as usize] = instr.arg1; //store data in cache
                             self.data[index as usize][0] = tag; //set tag
                             self.data[index as usize][1] = 1; //set valid bit
@@ -356,11 +357,11 @@ pub mod memory {
 
                     else if instr.opcode == STR_I as i32 || instr.opcode == GTR_I as i32 {
                             let main_addr = instr.arg2;
-                            let addr = self.main_memory[(main_addr / 4) as usize][(main_addr % 4) as usize]; //find address in the memory cell specified by the register and add offset
+                            let addr = self.main_memory[((main_addr / 4)% (MEMORY_SIZE * 4)) as usize][(main_addr % 4) as usize]; //find address in the memory cell specified by the register and add offset
                             let index = (addr / 4) % CACHE_SIZE; //find mapped location
 
                             if !self.on { //just update and return
-                                self.main_memory[(addr / 4) as usize][(addr % 4) as usize] = instr.arg1;
+                                self.main_memory[((addr / 4)% (MEMORY_SIZE * 4)) as usize][(addr % 4) as usize] = instr.arg1;
                                 return self.finish_instruction(addr / 4, addr % 4);
                             }
 
@@ -377,7 +378,7 @@ pub mod memory {
 
                             }
                             
-                            self.main_memory[(addr / 4) as usize][(addr % 4) as usize] = instr.arg1; //write through
+                            self.main_memory[((addr / 4)% (MEMORY_SIZE * 4)) as usize][(addr % 4) as usize] = instr.arg1; //write through
                             self.data[index as usize][((addr % 4) + 3) as usize] = instr.arg1; //store data in cache
                             self.data[index as usize][0] = tag; //set tag
                             self.data[index as usize][1] = 1; //set valid bit
@@ -393,7 +394,7 @@ pub mod memory {
                             }
                         }
 
-                        return self.finish_instruction((MEMORY_SIZE - 1) % CACHE_SIZE, (MEMORY_SIZE - 1) % 4) //confirmation return, no real info
+                        return self.finish_instruction((MEMORY_SIZE - 1), (MEMORY_SIZE - 1) % 4) //confirmation return, no real info
                     }
 
                     if instr.opcode == FTR as i32 {
@@ -403,7 +404,7 @@ pub mod memory {
                             }
                         }
 
-                        return self.finish_instruction((MEMORY_SIZE - 1) % CACHE_SIZE, (MEMORY_SIZE - 1) % 4) //confirmation return, no real info
+                        return self.finish_instruction((MEMORY_SIZE - 1), (MEMORY_SIZE - 1) % 4) //confirmation return, no real info
                     }
 
                         
@@ -431,10 +432,10 @@ pub mod memory {
         fn finish_instruction(&mut self, index: i32, offset: i32) -> ReturnVal {
             self.counter = 0;
             self.servicing = Devices::Free;
-            if !self.on {
-                return ReturnVal::Data(self.main_memory[index as usize][offset as usize]);
-            }
-            return ReturnVal::Data(self.data[index as usize][(offset + 3) as usize]); //just something that isn't wait
+          
+            return ReturnVal::Data(self.main_memory[index as usize][offset as usize]);
+            
+     
         }
 
         pub fn get_cache(&self, line: i32) -> [i32; 7] {
