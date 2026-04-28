@@ -14,7 +14,7 @@ use egui::{Grid, ScrollArea, util::id_type_map};
 use egui_extras::{Column, TableBuilder};
 
 use crate::{instruction::instruction::{Devices, Instruction, InstructionType}, 
-memory::memory::{Cache, Registers, ReturnVal}, 
+memory::memory::{CACHE_SIZE, Cache, MEMORY_SIZE, Registers, ReturnVal}, 
 opcode::opcode::{ADD_RI, ADD_RR, AND_RI, CMP_RI, CMP_RR, DIV_RI, FDR, FTR, GDR_D, GDR_I, GDR_PC, GTR_D, GTR_I, GTR_PC, HALT, JE_D, JE_I, JE_PC, JG_D, JG_I, JG_PC, JL_D, JL_I, JL_PC, JMP_D, JMP_I, JMP_PC, LDR_D, LDR_I, LDR_PC, LS_RI, LSL_RI, LSR_RI, MOD_RI, MUL_RI, OR_RI, POP, POP_LR, PSH, PSH_LR, RET, RS_RI, STR_D, STR_I, STR_PC, SUB_RI, XOR_RI}, pipeline::pipeline::Controler};
 use crate::{pipeline::pipeline::{Decode, Memory, Fetch, Execute, Writeback}};
 
@@ -118,7 +118,7 @@ pub fn test_pc_rel() {
     
     let mut reg = Registers::new();
     //reg.update_gp(1, 600);
-    let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
+    let mut cache = Cache::new([[-1; 7]; CACHE_SIZE as usize], [[-1; 4]; MEMORY_SIZE as usize]);
     cache.load_memory_from_file("src/programs/graphics-test.bin".to_string());
 
     let mut ctrl = Controler::new();
@@ -173,7 +173,7 @@ pub fn test_jmp_ret() {
     
     let mut reg = Registers::new();
     //reg.update_gp(1, 600);
-    let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
+    let mut cache = Cache::new([[-1; 7]; CACHE_SIZE as usize], [[-1; 4]; MEMORY_SIZE as usize]);
     cache.load_memory_from_file("src/programs/graphics-test.bin".to_string());
 
     let mut ctrl = Controler::new();
@@ -229,7 +229,7 @@ pub fn test_push_pop() {
     
     let mut reg = Registers::new();
     //reg.update_gp(1, 600);
-    let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
+    let mut cache = Cache::new([[-1; 7]; CACHE_SIZE as usize], [[-1; 4]; MEMORY_SIZE as usize]);
     cache.load_memory_from_file("src/programs/graphics-test.bin".to_string());
 
     let mut ctrl = Controler::new();
@@ -298,7 +298,7 @@ pub fn test_graphics_instructions() {
     
     let mut reg = Registers::new();
     reg.update_gp(1, 600);
-    let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
+    let mut cache = Cache::new([[-1; 7]; CACHE_SIZE as usize], [[-1; 4]; MEMORY_SIZE as usize]);
     cache.load_memory_from_file("src/programs/graphics-test.bin".to_string());
 
     let mut ctrl = Controler::new();
@@ -430,7 +430,7 @@ pub fn test_pipe_switch() {
     reg.update_gp(2 as usize, 0);
     reg.update_gp(3 as usize, 8);
     reg.update_gp(4 as usize,0);
-    let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
+    let mut cache = Cache::new([[-1; 7]; CACHE_SIZE as usize], [[-1; 4]; MEMORY_SIZE as usize]);
     cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
     let mut ctrl = Controler::new();
@@ -532,7 +532,7 @@ pub fn test_cache_switch() {
         pc: 0
     };
 
-    let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
+    let mut cache = Cache::new([[-1; 7]; CACHE_SIZE as usize], [[-1; 4]; MEMORY_SIZE as usize]);
     cache.switch(false);
 
     let mut ret = cache.call(str_d);
@@ -622,7 +622,7 @@ pub fn test_improved_memory() {
         result: None,
         pc: 0
     };
-    let mut main_memory = [[-1; 4]; 1000];
+    let mut main_memory = [[-1; 4]; MEMORY_SIZE as usize];
     main_memory[2][0] = 1;
     main_memory[2][1] = 2;
     main_memory[2][2] = 3;
@@ -638,7 +638,7 @@ pub fn test_improved_memory() {
     main_memory[17][2] = 71;
     main_memory[17][3] = 72;
 
-    let mut cache = Cache::new([[-1; 7]; 250], main_memory);
+    let mut cache = Cache::new([[-1; 7]; CACHE_SIZE as usize], main_memory);
 
     let mut ret = cache.call(load);
     ret = cache.call(load);
@@ -662,7 +662,7 @@ pub fn test_improved_memory() {
     assert_eq!(ret, ReturnVal::Data(70));
     //basic load works!
 
-    let mut prefilled:[[i32; 7]; 250] = [[-1; 7]; 250];
+    let mut prefilled:[[i32; 7]; CACHE_SIZE as usize] = [[-1; 7]; CACHE_SIZE as usize];
     prefilled[0][0] = 8;
     prefilled[0][1] = 1;
     prefilled[1][0] = 9;
@@ -754,7 +754,7 @@ pub fn test_control_flow() {
     reg.update_gp(2 as usize, 0);
     reg.update_gp(3 as usize, 8);
     reg.update_gp(4 as usize,0);
-    let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
+    let mut cache = Cache::new([[-1; 7]; CACHE_SIZE as usize], [[-1; 4]; MEMORY_SIZE as usize]);
     cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
     let cache_ref = &mut cache;
@@ -910,7 +910,7 @@ pub fn test_memory() {
         let mut data: ReturnVal = ReturnVal::Wait(true);
         let reg = Registers::new();
 
-        let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
+        let mut cache = Cache::new([[-1; 7]; CACHE_SIZE as usize], [[-1; 4]; MEMORY_SIZE as usize]);
 
         data = cache.call(instr);
         data = cache.call(instr); //should take 1, 2, 3 calls to store due to write through
@@ -1035,7 +1035,7 @@ pub fn test_memory() {
     pub fn test_fetch()  {
         create_binary_file("src/programs/fetch-test.bin", &[20,21,20,21,10,9]);
         let mut reg = Registers::new();
-        let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
+        let mut cache =Cache::new([[-1; 7]; CACHE_SIZE as usize], [[-1; 4]; MEMORY_SIZE as usize]); 
         cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
         let cache_ref = &mut cache;
@@ -1071,7 +1071,7 @@ pub fn test_memory() {
         let mut reg = Registers::new();
         reg.update_gp(1 as usize, 1);
         reg.update_gp(0 as usize, 1);
-        let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
+        let mut cache = Cache::new([[-1; 7]; CACHE_SIZE as usize], [[-1; 4]; MEMORY_SIZE as usize]);
         cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
         let comp_instr = Instruction {
@@ -1179,7 +1179,7 @@ pub fn test_memory() {
         let mut reg = Registers::new();
         reg.update_gp(1 as usize, 1);
         reg.update_gp(0 as usize, 1);
-        let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
+        let mut cache = Cache::new([[-1; 7]; CACHE_SIZE as usize], [[-1; 4]; MEMORY_SIZE as usize]);
         cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
         let default = Instruction {
@@ -1242,7 +1242,7 @@ pub fn test_memory() {
         let mut reg = Registers::new();
         reg.update_gp(1 as usize, 1);
         reg.update_gp(0 as usize, 1);
-        let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
+        let mut cache = Cache::new([[-1; 7]; CACHE_SIZE as usize], [[-1; 4]; MEMORY_SIZE as usize]);
         cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
         let default = Instruction {
@@ -1294,7 +1294,7 @@ pub fn test_memory() {
         let mut reg = Registers::new();
         reg.update_gp(1 as usize, 1);
         reg.update_gp(0 as usize, 1);
-        let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
+        let mut cache = Cache::new([[-1; 7]; CACHE_SIZE as usize], [[-1; 4]; MEMORY_SIZE as usize]);
         cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
         let default = Instruction {
@@ -1352,7 +1352,7 @@ struct Simulator {
 
 impl Default for Simulator {
     fn default() -> Self {
-        let mut cache = Cache::new([[-1; 7]; 250], [[-1; 4]; 1000]);
+        let mut cache = Cache::new([[-1; 7]; CACHE_SIZE as usize], [[-1; 4]; MEMORY_SIZE as usize]);
         let mut registers = Registers::new();
         let mut ctrl = Controler::new();
         let filename = String::new();

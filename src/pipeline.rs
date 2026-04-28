@@ -24,6 +24,9 @@ const TYPE_MASK: u32 = 0b1;
 const OPCODE_MASK: u32 = 0b11_1111;
 const REG_MASK: u32 = 0b1_1111;
 const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
+const RGB_MASK: u32 = 0b1111_1111;
+
+const COLOR_DEPTH: i32 = 16;
 
 
     pub struct Fetch {
@@ -340,18 +343,123 @@ const IMMEDIATE_MASK: u32 = 0b1111_1111_1111;
             }
             if let Some(instr) = self.instruction.as_mut() {
                 if instr.instr_type == InstructionType::ALU {
-                    if instr.opcode == ADD_RI as i32   || instr.opcode == ADD_RR as i32{ //if ADD, use values provided by decode
-                        instr.result.replace( instr.arg1 +  instr.arg2);
-                        
+                    if instr.opcode == ADD_RI as i32   || instr.opcode == ADD_RR as i32{ 
+                        if instr.type_field == 1 {
+                            //extract channels 
+                            let R1 = ((instr.arg1 >> 16) as u32 | RGB_MASK);
+                            let G1 = ((instr.arg1 >> 8) as u32 | RGB_MASK); 
+                            let B1 = (instr.arg1 as u32) | RGB_MASK;
+
+                            let R2 = (instr.arg2 >> 16) as u32 | RGB_MASK;
+                            let G2 = (instr.arg2 >> 8) as u32 | RGB_MASK;
+                            let B2 = instr.arg2 as u32 | RGB_MASK;
+
+                            let R = (R1 + R2) % 256; //do not exceed max color depth
+                            let G = (G1 + G2) % 256;
+                            let B = (B1 + B2) % 256;
+
+                            let result = (R << 16) | (G << 8) | B;
+                            instr.result.replace(result as i32);
+
+                        }
+                        else {
+                            instr.result.replace( instr.arg1 +  instr.arg2);
+                        }
                     }
                     else if instr.opcode == SUB_RI as i32 || instr.opcode == SUB_RR as i32 {
-                        instr.result.replace( instr.arg1 -  instr.arg2);
+                        if instr.type_field == 1 {
+                            //extract channels 
+                            let R1 = ((instr.arg1 >> 16) as u32 | RGB_MASK);
+                            let G1 = ((instr.arg1 >> 8) as u32 | RGB_MASK); 
+                            let B1 = (instr.arg1 as u32) | RGB_MASK;
+
+                            let R2 = (instr.arg2 >> 16) as u32 | RGB_MASK;
+                            let G2 = (instr.arg2 >> 8) as u32 | RGB_MASK;
+                            let B2 = instr.arg2 as u32 | RGB_MASK;
+
+                            let R = R1.saturating_sub(R2); //do not go below 0
+                            let G = G1.saturating_sub(G2);
+                            let B = B1.saturating_sub(B2);
+
+                            let result = (R << 16) | (G << 8) | B;
+                            instr.result.replace(result as i32);
+
+                        }
+                        else {
+                            instr.result.replace( instr.arg1 -  instr.arg2);
+                        }
                     }
                     else if instr.opcode == MUL_RI as i32 || instr.opcode == MUL_RR as i32 {
-                        instr.result.replace( instr.arg1 *  instr.arg2);
+                        if instr.type_field == 1 {
+                            //extract channels 
+                            let R1 = ((instr.arg1 >> 16) as u32 | RGB_MASK);
+                            let G1 = ((instr.arg1 >> 8) as u32 | RGB_MASK); 
+                            let B1 = (instr.arg1 as u32) | RGB_MASK;
+
+                            let R2 = (instr.arg2 >> 16) as u32 | RGB_MASK;
+                            let G2 = (instr.arg2 >> 8) as u32 | RGB_MASK;
+                            let B2 = instr.arg2 as u32 | RGB_MASK;
+
+                            let R = ((R1 * R2) / 255) % 255; //do not go below 0
+                            let G = ((G1 * G2) / 255) % 255;
+                            let B = ((B1 * B2) / 255) % 255;
+
+                            let result = (R << 16) | (G << 8) | B;
+                            instr.result.replace(result as i32);
+
+                        }
+                        else {
+                            instr.result.replace( instr.arg1 *  instr.arg2);
+                        }
+                        
                     }
                     else if instr.opcode == DIV_RI as i32 || instr.opcode == DIV_RR as i32 {
-                        instr.result.replace( instr.arg1 / instr.arg2);
+                        if instr.type_field == 1 {
+                            //extract channels 
+                            let R1 = ((instr.arg1 >> 16) as u32 | RGB_MASK);
+                            let G1 = ((instr.arg1 >> 8) as u32 | RGB_MASK); 
+                            let B1 = (instr.arg1 as u32) | RGB_MASK;
+
+                            let R2 = (instr.arg2 >> 16) as u32 | RGB_MASK;
+                            let G2 = (instr.arg2 >> 8) as u32 | RGB_MASK;
+                            let B2 = instr.arg2 as u32 | RGB_MASK;
+
+                            let mut R: u32;
+                            let mut G: u32;
+                            let mut B: u32;
+                            
+                            let r = R1.checked_div(R2); //prevent diviging by 0 logic
+                            let g = G1.checked_div(G2);
+                            let b = B1.checked_div(B2);
+                            
+                            if r.is_none() {
+                                R = 0;
+                            }
+                            else  {
+                                R = r.unwrap();
+                            }
+                            if g.is_none() {
+                                G = 0;
+                            }
+                            else  {
+                                G = g.unwrap();
+                            }
+                            if b.is_none() {
+                                B = 0;
+                            }
+                            else  {
+                                B = b.unwrap();
+                            }
+
+                            let result = (R << 16) | (G << 8) | B;
+                            
+                            instr.result.replace(result as i32);
+
+                        }
+                        else {
+                            instr.result.replace( instr.arg1 / instr.arg2);
+                        }
+                        
                     }
                     else if instr.opcode == MOD_RI as i32 || instr.opcode == MOD_RR as i32 {
                         instr.result.replace( instr.arg1 %  instr.arg2);
