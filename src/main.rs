@@ -8,6 +8,7 @@ use std::{collections::btree_map::Range, io, ptr::null};
 
 
 use doomed_isa::{memory::memory::GRAPHICS_OFFSET, opcode::opcode::RS_RR};
+use doomed_isa::{memory::memory::GRAPHICS_OFFSET, opcode::opcode::RS_RR};
 
 use eframe::{App, wgpu::Color};
 use egui::{Color32, ColorImage, Grid, ScrollArea, TextureHandle, util::id_type_map};
@@ -1507,9 +1508,11 @@ impl eframe::App for Simulator {
                 columns[2].vertical(|ui| {
                     let available_height = ui.available_height();
                     let third_height = available_height / 3.0;
+                    let third_height = available_height / 3.0;
 
                     ui.label("Cache");
                     ui.allocate_ui_with_layout(
+        egui::vec2(ui.available_width(), third_height),
         egui::vec2(ui.available_width(), third_height),
                     egui::Layout::top_down(egui::Align::Min),
         |ui| {
@@ -1544,6 +1547,7 @@ impl eframe::App for Simulator {
                     ui.label("Pipeline");
 
                     ui.allocate_ui_with_layout(
+        egui::vec2(ui.available_width(), third_height),
         egui::vec2(ui.available_width(), third_height),
                     egui::Layout::top_down(egui::Align::Min),
         |ui| {
