@@ -6,7 +6,7 @@ pub mod memory {
 
     pub const CACHE_SIZE: i32 = 1000;
     pub const MEMORY_SIZE: i32 = 65536; //address space of 262,144 values, all of which are 4 bytes each. 
-    pub const GRAPHICS_OFFSET: i32 = (((FRAME_WIDTH * FRAME_HEIGHT))); //Takes up 19,200 lines of memory
+    pub const GRAPHICS_OFFSET: i32 = MEMORY_SIZE - (((FRAME_WIDTH * FRAME_HEIGHT)) / 4); //Takes up 19,200 lines of memory
     //includes the size given by line width 
     pub const STACK_INIT: i32 = ((GRAPHICS_OFFSET / 4) - 1) * 4; //set inital stack to top of memory below graphics memory
     

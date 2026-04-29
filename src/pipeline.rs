@@ -567,13 +567,13 @@ const COLOR_DEPTH: i32 = 16;
                         instr.arg2 = instr.arg2 + instr.arg3;
                     }
                     else if instr.opcode == GDR_D as i32 || instr.opcode == GDR_I as i32 || instr.opcode == GDR_PC as i32 {
-                        let graphics_addr = (instr.arg1 + GRAPHICS_OFFSET) % (MEMORY_SIZE * 4); //mod memory size to prevent overflow
+                        let graphics_addr = (instr.arg1 + GRAPHICS_OFFSET * 4) % (MEMORY_SIZE * 4); //mod memory size to prevent overflow
                         instr.arg1 = graphics_addr + instr.arg3;
 
                     }
 
                     else if instr.opcode == GTR_D as i32 || instr.opcode == GTR_I as i32 || instr.opcode == GTR_PC as i32 {
-                        let graphics_addr = (instr.arg2 + GRAPHICS_OFFSET) % (MEMORY_SIZE * 4);
+                        let graphics_addr = (instr.arg2 + GRAPHICS_OFFSET * 4) % (MEMORY_SIZE * 4);
                         instr.arg2 = graphics_addr + instr.arg3;
                     }
                     else if instr.opcode == PSH as i32 || instr.opcode == PSH_LR as i32 {

@@ -1493,7 +1493,7 @@ impl eframe::App for Simulator {
                         header.col(|ui| { ui.label("Value"); });
                     })
                     .body(|mut body| {
-                        for i in 0..1000 {
+                        for i in 0..999 {
                             body.row(20.0, |mut row| {
                                 row.col(|ui| { 
                                     ui.label(format!("0x{i:X}")); 
@@ -1588,15 +1588,25 @@ impl eframe::App for Simulator {
                 ui.allocate_ui_with_layout(egui::vec2(ui.available_width(), third_height),
                     egui::Layout::top_down(egui::Align::Min),
         |ui| {
-                    let frame = self.cache.main_memory[(self.cache.main_memory.len() - (GRAPHICS_OFFSET / 4) as usize)..].into_iter().flatten().copied().collect::<Vec<_>>();
+                    let frame = self.cache.main_memory[(GRAPHICS_OFFSET) as usize..].into_iter().flatten().copied().collect::<Vec<_>>();
+                    for i in 0..16 {
+                        println!("{}", frame[i]);
+                    }
                     let mut pixels: Vec<Color32> = Vec::new();
                     for pixel in frame {
                         pixels.push(Color32::from_rgb(pixel.to_le_bytes()[0], pixel.to_le_bytes()[1], pixel.to_le_bytes()[2]));
                     }
-                    let mut img = ColorImage::new([320, 240], pixels);
-                    let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
-                        ui.ctx().load_texture("framebuffer", img, Default::default())
-                    });
+                    let img = ColorImage::new([320, 240], pixels);
+                    let texture = match &mut self.texture {
+                        Some(texture) => {
+                            texture.set(img, Default::default());
+                            texture
+                        }
+                         None => {
+                            self.texture = Some(ui.ctx().load_texture("framebuffer", img, Default::default()));
+                            self.texture.as_mut().unwrap()
+                        }
+                    };
 
                     ui.image((texture.id(), texture.size_vec2()));
                 });
