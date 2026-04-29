@@ -7,10 +7,10 @@ use std::{collections::btree_map::Range, io, ptr::null};
 
 
 
-use doomed_isa::opcode::opcode::RS_RR;
+use doomed_isa::{memory::memory::GRAPHICS_OFFSET, opcode::opcode::RS_RR};
 
-use eframe::App;
-use egui::{Grid, ScrollArea, util::id_type_map};
+use eframe::{App, wgpu::Color};
+use egui::{Color32, ColorImage, Grid, ScrollArea, TextureHandle, util::id_type_map};
 use egui_extras::{Column, TableBuilder};
 
 use crate::{instruction::instruction::{Devices, Instruction, InstructionType}, 
@@ -1347,7 +1347,8 @@ struct Simulator {
     bp: String,
     breakpoints: Vec<u32>,
     filename: String,
-    writeback: Writeback
+    writeback: Writeback,
+    texture: Option<egui::TextureHandle>
 }
 
 impl Default for Simulator {
@@ -1364,6 +1365,7 @@ impl Default for Simulator {
         let mut mem_stage = Memory::new(exec_stage);
         let mut writeback = Writeback::new(mem_stage);
         let mut cycles: u32 = 0;
+        let texture = None;
         let i1 = instr_fields_to_decimal(0, ADD_RI, 1, 1, 1, InstructionType::ALU);
         let i2 = instr_fields_to_decimal(0, ADD_RR, 1, 1, 2, InstructionType::ALU);
         let i3 = instr_fields_to_decimal(0, ADD_RR, 2, 2, 3, InstructionType::ALU);
@@ -1388,7 +1390,8 @@ impl Default for Simulator {
             bp,
             breakpoints,
             filename,
-            writeback
+            writeback,
+            texture
         }
     }
 }
@@ -1503,11 +1506,11 @@ impl eframe::App for Simulator {
 
                 columns[2].vertical(|ui| {
                     let available_height = ui.available_height();
-                    let half_height = available_height / 2.0;
+                    let third_height = available_height / 3.0;
 
                     ui.label("Cache");
                     ui.allocate_ui_with_layout(
-        egui::vec2(ui.available_width(), half_height),
+        egui::vec2(ui.available_width(), third_height),
                     egui::Layout::top_down(egui::Align::Min),
         |ui| {
                     ScrollArea::vertical().id_salt("third area").show(ui, |ui| {
@@ -1541,7 +1544,7 @@ impl eframe::App for Simulator {
                     ui.label("Pipeline");
 
                     ui.allocate_ui_with_layout(
-        egui::vec2(ui.available_width(), half_height),
+        egui::vec2(ui.available_width(), third_height),
                     egui::Layout::top_down(egui::Align::Min),
         |ui| {
                     ScrollArea::vertical().id_salt("fourth area").show(ui, |ui| {
@@ -1577,9 +1580,27 @@ impl eframe::App for Simulator {
                     });
                     },
                 );
-                });
 
-                // Add pipeline state display
+                ui.separator();
+
+                ui.label("Framebuffer");
+                // Framebuffer display
+                ui.allocate_ui_with_layout(egui::vec2(ui.available_width(), third_height),
+                    egui::Layout::top_down(egui::Align::Min),
+        |ui| {
+                    let frame = self.cache.main_memory[(self.cache.main_memory.len() - (GRAPHICS_OFFSET / 4) as usize)..].into_iter().flatten().copied().collect::<Vec<_>>();
+                    let mut pixels: Vec<Color32> = Vec::new();
+                    for pixel in frame {
+                        pixels.push(Color32::from_rgb(pixel.to_le_bytes()[0], pixel.to_le_bytes()[1], pixel.to_le_bytes()[2]));
+                    }
+                    let mut img = ColorImage::new([320, 240], pixels);
+                    let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
+                        ui.ctx().load_texture("framebuffer", img, Default::default())
+                    });
+
+                    ui.image((texture.id(), texture.size_vec2()));
+                });
+                });
             });
         });
     }
