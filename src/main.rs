@@ -1589,9 +1589,6 @@ impl eframe::App for Simulator {
                     egui::Layout::top_down(egui::Align::Min),
         |ui| {
                     let frame = self.cache.main_memory[(GRAPHICS_OFFSET) as usize..].into_iter().flatten().copied().collect::<Vec<_>>();
-                    for i in 0..16 {
-                        println!("{}", frame[i]);
-                    }
                     let mut pixels: Vec<Color32> = Vec::new();
                     for pixel in frame {
                         pixels.push(Color32::from_rgb(pixel.to_le_bytes()[0], pixel.to_le_bytes()[1], pixel.to_le_bytes()[2]));
