@@ -15,7 +15,7 @@ use egui_extras::{Column, TableBuilder};
 
 use crate::{instruction::instruction::{Devices, Instruction, InstructionType}, 
 memory::memory::{CACHE_SIZE, Cache, MEMORY_SIZE, Registers, ReturnVal}, 
-opcode::opcode::{ADD_RI, ADD_RR, AND_RI, CMP_RI, CMP_RR, DIV_RI, FDR, FTR, GDR_D, GDR_I, GDR_PC, GTR_D, GTR_I, GTR_PC, HALT, JE_D, JE_I, JE_PC, JG_D, JG_I, JG_PC, JL_D, JL_I, JL_PC, JMP_D, JMP_I, JMP_PC, LDR_D, LDR_I, LDR_PC, LS_RI, LSL_RI, LSR_RI, MOD_RI, MUL_RI, OR_RI, POP, POP_LR, PSH, PSH_LR, RET, RS_RI, STR_D, STR_I, STR_PC, SUB_RI, XOR_RI}, pipeline::pipeline::Controler};
+opcode::opcode::{ADD_RI, ADD_RR, AND_RI, CMP_RI, CMP_RR, DIV_RI, FDR, FTR, GDR_D, GDR_I, GDR_PC, GTR_D, GTR_I, GTR_PC, HALT, JE_D, JE_I, JE_PC, JG_D, JG_I, JG_PC, JL_D, JL_I, JL_PC, JMP_D, JMP_I, JMP_PC, LDR_D, LDR_I, LDR_PC, LS_RI, LSL_RI, LSR_RI, MOD_RI, MUL_RI, OR_RI, POP, POP_LR, PSH, PSH_LR, RET, RS_RI, STR_D, STR_I, STR_PC, SUB_RI, XOR_RI}, pipeline::pipeline::Controller};
 use crate::{pipeline::pipeline::{Decode, Memory, Fetch, Execute, Writeback}};
 
 use std::cell::RefCell;
@@ -121,7 +121,7 @@ pub fn test_pc_rel() {
     let mut cache = Cache::new([[-1; 7]; CACHE_SIZE as usize], [[-1; 4]; MEMORY_SIZE as usize]);
     cache.load_memory_from_file("src/programs/graphics-test.bin".to_string());
 
-    let mut ctrl = Controler::new();
+    let mut ctrl = Controller::new();
     //ctrl.switch(true);
 
     let cache_ref = &mut cache;
@@ -176,7 +176,7 @@ pub fn test_jmp_ret() {
     let mut cache = Cache::new([[-1; 7]; CACHE_SIZE as usize], [[-1; 4]; MEMORY_SIZE as usize]);
     cache.load_memory_from_file("src/programs/graphics-test.bin".to_string());
 
-    let mut ctrl = Controler::new();
+    let mut ctrl = Controller::new();
     //ctrl.switch(true);
 
     let cache_ref = &mut cache;
@@ -232,7 +232,7 @@ pub fn test_push_pop() {
     let mut cache = Cache::new([[-1; 7]; CACHE_SIZE as usize], [[-1; 4]; MEMORY_SIZE as usize]);
     cache.load_memory_from_file("src/programs/graphics-test.bin".to_string());
 
-    let mut ctrl = Controler::new();
+    let mut ctrl = Controller::new();
     //ctrl.switch(true);
 
     let cache_ref = &mut cache;
@@ -301,7 +301,7 @@ pub fn test_graphics_instructions() {
     let mut cache = Cache::new([[-1; 7]; CACHE_SIZE as usize], [[-1; 4]; MEMORY_SIZE as usize]);
     cache.load_memory_from_file("src/programs/graphics-test.bin".to_string());
 
-    let mut ctrl = Controler::new();
+    let mut ctrl = Controller::new();
     //ctrl.switch(true);
 
     let cache_ref = &mut cache;
@@ -433,7 +433,7 @@ pub fn test_pipe_switch() {
     let mut cache = Cache::new([[-1; 7]; CACHE_SIZE as usize], [[-1; 4]; MEMORY_SIZE as usize]);
     cache.load_memory_from_file("src/programs/fetch-test.bin".to_string());
 
-    let mut ctrl = Controler::new();
+    let mut ctrl = Controller::new();
     ctrl.switch(false);
 
     let cache_ref = &mut cache;
@@ -765,7 +765,7 @@ pub fn test_control_flow() {
     let mut memory = Memory::new( excecute);
     let mut writeback = Writeback::new( memory);
     
-    let mut wb_ret = writeback.call(reg_ref, cache_ref, &mut Controler::new());
+    let mut wb_ret = writeback.call(reg_ref, cache_ref, &mut Controller::new());
     
     while wb_ret.is_none() || (wb_ret.is_some() && wb_ret.unwrap().instr_type != InstructionType::NOOP) {
         println!("{}", "  ");
@@ -786,7 +786,7 @@ pub fn test_control_flow() {
         let (cur_i, pc) = writeback.mem_stage.exec_stage.dec_stage.fetch_stage.state();
         println!("{} \n {}", cur_i, pc);
         println!("{}", "  ");
-        wb_ret = writeback.call(reg_ref, cache_ref, &mut Controler::new());
+        wb_ret = writeback.call(reg_ref, cache_ref, &mut Controller::new());
     }
 
 
@@ -1042,20 +1042,20 @@ pub fn test_memory() {
         let mut fetch = Fetch::new();
         let mut fetch_return: (InstructionType, i32, i32);
         let reg_ref = &mut reg;
-        fetch_return = fetch.call(InstructionType::NotBlocked, reg_ref, cache_ref,&mut Controler::new()); //makes first call to cache
+        fetch_return = fetch.call(InstructionType::NotBlocked, reg_ref, cache_ref,&mut Controller::new()); //makes first call to cache
 
         assert_eq!(fetch_return, (InstructionType::Stall, -1, -1), "Returned something wrong on first call");
 
-        fetch_return = fetch.call(InstructionType::NotBlocked, reg_ref, cache_ref,&mut Controler::new()); //counter = 1
-        fetch_return = fetch.call(InstructionType::NotBlocked, reg_ref, cache_ref,&mut Controler::new()); //counter = 2
-        fetch_return = fetch.call(InstructionType::NotBlocked, reg_ref, cache_ref,&mut Controler::new()); //counter = 3, should return Data(20)
+        fetch_return = fetch.call(InstructionType::NotBlocked, reg_ref, cache_ref,&mut Controller::new()); //counter = 1
+        fetch_return = fetch.call(InstructionType::NotBlocked, reg_ref, cache_ref,&mut Controller::new()); //counter = 2
+        fetch_return = fetch.call(InstructionType::NotBlocked, reg_ref, cache_ref,&mut Controller::new()); //counter = 3, should return Data(20)
 
         assert_eq!(fetch_return, (InstructionType::NotBlocked, 20, 0), "Did not successfully fetch");
 
-        fetch_return = fetch.call(InstructionType::NotBlocked, reg_ref, cache_ref,&mut Controler::new());
-        fetch_return = fetch.call(InstructionType::NotBlocked, reg_ref, cache_ref,&mut Controler::new());
-        fetch_return = fetch.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new());
-        fetch_return = fetch.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new());
+        fetch_return = fetch.call(InstructionType::NotBlocked, reg_ref, cache_ref,&mut Controller::new());
+        fetch_return = fetch.call(InstructionType::NotBlocked, reg_ref, cache_ref,&mut Controller::new());
+        fetch_return = fetch.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new());
+        fetch_return = fetch.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new());
 
         assert_eq!(fetch_return, (InstructionType::NotBlocked, 21, 1), "Did not successfully fetch");
         
@@ -1110,11 +1110,11 @@ pub fn test_memory() {
         let mut fetch = Fetch::new();
         let mut decode = Decode::new(fetch);
 
-        let mut dec_return = decode.call(InstructionType::NotBlocked, reg_ref, cache_ref,&mut Controler::new()); //should start fetch chain
-        dec_return = decode.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new());
-        dec_return = decode.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new());
-        dec_return = decode.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new());
-        dec_return = decode.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new());
+        let mut dec_return = decode.call(InstructionType::NotBlocked, reg_ref, cache_ref,&mut Controller::new()); //should start fetch chain
+        dec_return = decode.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new());
+        dec_return = decode.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new());
+        dec_return = decode.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new());
+        dec_return = decode.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new());
 
         assert_eq!(dec_return.unwrap_or(default), comp_instr, "Decode did not return or properly decode the instruction");
         //decoding a memory instruction works!
@@ -1136,10 +1136,10 @@ pub fn test_memory() {
 
         };
         //one less because fetch retuned its first stall on the call that returned above
-        dec_return = decode.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new());
-        dec_return = decode.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new());
-        dec_return = decode.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new());
-        dec_return = decode.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new());
+        dec_return = decode.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new());
+        dec_return = decode.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new());
+        dec_return = decode.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new());
+        dec_return = decode.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new());
 
         assert_eq!(dec_return.unwrap_or(default), comp_instr, "Decode did not return or properly decode the instruction");
 
@@ -1159,10 +1159,10 @@ pub fn test_memory() {
 
         };
 
-        dec_return = decode.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new());
-        dec_return = decode.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new());
-        dec_return = decode.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new());
-        dec_return = decode.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new());
+        dec_return = decode.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new());
+        dec_return = decode.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new());
+        dec_return = decode.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new());
+        dec_return = decode.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new());
 
         assert_eq!(dec_return.unwrap_or(default), comp_instr, "Decode did not return or properly decode the instruction");
 
@@ -1203,27 +1203,27 @@ pub fn test_memory() {
         let mut decode = Decode::new(fetch);
         let mut excecute = Execute::new(decode);
 
-        let mut exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref,&mut Controler::new());
-        exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new());
-        exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new());
-        exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new());
-        exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new()); //decode returns here
-        exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new()); //exec returns here, arg1 should be 16
+        let mut exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref,&mut Controller::new());
+        exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new());
+        exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new());
+        exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new());
+        exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new()); //decode returns here
+        exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new()); //exec returns here, arg1 should be 16
         
 
         assert_eq!(exec_return.unwrap_or(default).arg1, 17);
 
-        exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new());
-        exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new());
-        exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new()); //decode returns here
-        exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new());
+        exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new());
+        exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new());
+        exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new()); //decode returns here
+        exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new());
 
         assert_eq!(exec_return.unwrap_or(default).result.unwrap_or(0), 4);
 
-        exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new());
-        exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new());
-        exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new());
-        exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controler::new()); //exec returns here, comparison flag should be 0
+        exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new());
+        exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new());
+        exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new());
+        exec_return = excecute.call(InstructionType::NotBlocked, reg_ref, cache_ref, &mut Controller::new()); //exec returns here, comparison flag should be 0
 
         //assert_eq!(cache_ref.registers.get_flags(), 0);
 
@@ -1267,19 +1267,19 @@ pub fn test_memory() {
         let mut excecute = Execute::new(decode);
         let mut memory = Memory::new( excecute);
 
-        let mut mem_return = memory.call(reg_ref, cache_ref, InstructionType::NotBlocked, &mut Controler::new());
-        mem_return = memory.call(reg_ref, cache_ref, InstructionType::NotBlocked, &mut Controler::new());
-        mem_return = memory.call(reg_ref, cache_ref, InstructionType::NotBlocked, &mut Controler::new());
-         mem_return = memory.call(reg_ref, cache_ref, InstructionType::NotBlocked, &mut Controler::new());
-         mem_return = memory.call(reg_ref, cache_ref, InstructionType::NotBlocked, &mut Controler::new());
-         mem_return = memory.call(reg_ref, cache_ref, InstructionType::NotBlocked,&mut Controler::new());
-         mem_return = memory.call(reg_ref, cache_ref, InstructionType::NotBlocked, &mut Controler::new());
-         mem_return = memory.call(reg_ref, cache_ref, InstructionType::NotBlocked, &mut Controler::new());
-         mem_return = memory.call(reg_ref, cache_ref, InstructionType::NotBlocked, &mut Controler::new());
-         mem_return = memory.call(reg_ref, cache_ref, InstructionType::NotBlocked, &mut Controler::new());
-        mem_return = memory.call(reg_ref, cache_ref, InstructionType::NotBlocked, &mut Controler::new());
-        mem_return = memory.call(reg_ref, cache_ref, InstructionType::NotBlocked, &mut Controler::new());
-        mem_return = memory.call(reg_ref, cache_ref, InstructionType::NotBlocked, &mut Controler::new()); //mem_stage returns value here on the same call that the cache returns a value
+        let mut mem_return = memory.call(reg_ref, cache_ref, InstructionType::NotBlocked, &mut Controller::new());
+        mem_return = memory.call(reg_ref, cache_ref, InstructionType::NotBlocked, &mut Controller::new());
+        mem_return = memory.call(reg_ref, cache_ref, InstructionType::NotBlocked, &mut Controller::new());
+         mem_return = memory.call(reg_ref, cache_ref, InstructionType::NotBlocked, &mut Controller::new());
+         mem_return = memory.call(reg_ref, cache_ref, InstructionType::NotBlocked, &mut Controller::new());
+         mem_return = memory.call(reg_ref, cache_ref, InstructionType::NotBlocked,&mut Controller::new());
+         mem_return = memory.call(reg_ref, cache_ref, InstructionType::NotBlocked, &mut Controller::new());
+         mem_return = memory.call(reg_ref, cache_ref, InstructionType::NotBlocked, &mut Controller::new());
+         mem_return = memory.call(reg_ref, cache_ref, InstructionType::NotBlocked, &mut Controller::new());
+         mem_return = memory.call(reg_ref, cache_ref, InstructionType::NotBlocked, &mut Controller::new());
+        mem_return = memory.call(reg_ref, cache_ref, InstructionType::NotBlocked, &mut Controller::new());
+        mem_return = memory.call(reg_ref, cache_ref, InstructionType::NotBlocked, &mut Controller::new());
+        mem_return = memory.call(reg_ref, cache_ref, InstructionType::NotBlocked, &mut Controller::new()); //mem_stage returns value here on the same call that the cache returns a value
 
         assert_eq!(true, mem_return.unwrap_or(default).result.is_some())
 
@@ -1320,20 +1320,20 @@ pub fn test_memory() {
         let mut memory = Memory::new( excecute);
         let mut writeback = Writeback::new( memory);
 
-        let mut wb_return = writeback.call(reg_ref, cache_ref, &mut Controler::new());
-        wb_return = writeback.call(reg_ref, cache_ref, &mut Controler::new());
-        wb_return = writeback.call(reg_ref, cache_ref, &mut Controler::new());
-        wb_return = writeback.call(reg_ref, cache_ref, &mut Controler::new());
-        wb_return = writeback.call(reg_ref, cache_ref, &mut Controler::new());
-        wb_return = writeback.call(reg_ref, cache_ref, &mut Controler::new());
-        wb_return = writeback.call(reg_ref, cache_ref, &mut Controler::new());
-        wb_return = writeback.call(reg_ref, cache_ref,&mut Controler::new());
-        wb_return = writeback.call(reg_ref, cache_ref, &mut Controler::new());
-        wb_return = writeback.call(reg_ref, cache_ref, &mut Controler::new());
-        wb_return = writeback.call(reg_ref, cache_ref, &mut Controler::new());
-        wb_return = writeback.call(reg_ref, cache_ref, &mut Controler::new()); //12th memory call returns
-        wb_return = writeback.call(reg_ref, cache_ref, &mut Controler::new());
-        wb_return = writeback.call(reg_ref, cache_ref, &mut Controler::new()); //should return for real here
+        let mut wb_return = writeback.call(reg_ref, cache_ref, &mut Controller::new());
+        wb_return = writeback.call(reg_ref, cache_ref, &mut Controller::new());
+        wb_return = writeback.call(reg_ref, cache_ref, &mut Controller::new());
+        wb_return = writeback.call(reg_ref, cache_ref, &mut Controller::new());
+        wb_return = writeback.call(reg_ref, cache_ref, &mut Controller::new());
+        wb_return = writeback.call(reg_ref, cache_ref, &mut Controller::new());
+        wb_return = writeback.call(reg_ref, cache_ref, &mut Controller::new());
+        wb_return = writeback.call(reg_ref, cache_ref,&mut Controller::new());
+        wb_return = writeback.call(reg_ref, cache_ref, &mut Controller::new());
+        wb_return = writeback.call(reg_ref, cache_ref, &mut Controller::new());
+        wb_return = writeback.call(reg_ref, cache_ref, &mut Controller::new());
+        wb_return = writeback.call(reg_ref, cache_ref, &mut Controller::new()); //12th memory call returns
+        wb_return = writeback.call(reg_ref, cache_ref, &mut Controller::new());
+        wb_return = writeback.call(reg_ref, cache_ref, &mut Controller::new()); //should return for real here
 
         assert_eq!(reg_ref.get_gp(2), -1); //should have stored the -1 from memory in register 2
 
@@ -1342,7 +1342,7 @@ pub fn test_memory() {
 struct Simulator {
     cache: Cache,
     registers: Registers,
-    ctrl: Controler,
+    ctrl: Controller,
     cycles: u32,
     bp: String,
     breakpoints: Vec<u32>,
@@ -1355,7 +1355,7 @@ impl Default for Simulator {
     fn default() -> Self {
         let mut cache = Cache::new([[-1; 7]; CACHE_SIZE as usize], [[-1; 4]; MEMORY_SIZE as usize]);
         let mut registers = Registers::new();
-        let mut ctrl = Controler::new();
+        let mut ctrl = Controller::new();
         let filename = String::new();
         let mut bp: String = String::new();
         let mut breakpoints:Vec<u32> = Vec::new();

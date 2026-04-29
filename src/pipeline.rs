@@ -54,14 +54,14 @@ const COLOR_DEPTH: i32 = 16;
         pub mem_stage: Memory
     }
 
-    pub struct Controler {
+    pub struct Controller {
         pub on: bool,
         processing: i32
     }
 
-    impl Controler {
+    impl Controller {
         pub fn new() -> Self {
-            Controler {
+            Controller {
                 on: true,
                 processing: 0
             }
@@ -98,7 +98,7 @@ const COLOR_DEPTH: i32 = 16;
             }
         }
 
-        pub fn call(&mut self, reg: &mut Registers, cache: &mut Cache, ctrl: &mut Controler) -> Option<Instruction>{
+        pub fn call(&mut self, reg: &mut Registers, cache: &mut Cache, ctrl: &mut Controller) -> Option<Instruction>{
             let mut wb_status = InstructionType::NotBlocked;
             //if there is some instruction that is not NOOP, Stalled, or Squashed:
             if self.instruction.is_some()  && (self.instruction.unwrap().instr_type !=  InstructionType::NOOP ||self.instruction.unwrap().instr_type !=  InstructionType::Squashed || self.instruction.unwrap().instr_type !=  InstructionType::Stall) {
@@ -210,7 +210,7 @@ const COLOR_DEPTH: i32 = 16;
             }
         }
 
-        pub fn call(&mut self, reg: &mut Registers, cache: &mut Cache, wb_status: InstructionType, ctrl: &mut Controler) -> Option<Instruction>{
+        pub fn call(&mut self, reg: &mut Registers, cache: &mut Cache, wb_status: InstructionType, ctrl: &mut Controller) -> Option<Instruction>{
             let mut mem_status: InstructionType = InstructionType::Blocked;
             let mut result: ReturnVal = ReturnVal::Wait(true);
             
@@ -322,7 +322,7 @@ const COLOR_DEPTH: i32 = 16;
             }
         }
 
-        pub fn call(&mut self, mem_status: InstructionType, reg: &mut Registers, cache: &mut Cache, ctrl: &mut Controler) -> Option<Instruction> {
+        pub fn call(&mut self, mem_status: InstructionType, reg: &mut Registers, cache: &mut Cache, ctrl: &mut Controller) -> Option<Instruction> {
             if mem_status == InstructionType::Squashed {
                 self.instruction = Some(Instruction {
                                         instr_type: InstructionType::Squashed,
@@ -665,7 +665,7 @@ const COLOR_DEPTH: i32 = 16;
             }
         }
 
-        pub fn call(&mut self, exec_status: InstructionType, reg: &mut Registers, cache: &mut Cache, ctrl: &mut Controler) -> Option<Instruction> {
+        pub fn call(&mut self, exec_status: InstructionType, reg: &mut Registers, cache: &mut Cache, ctrl: &mut Controller) -> Option<Instruction> {
             let mut dec_status = exec_status;
             if dec_status == InstructionType::Squashed {
                 self.dec_instruction = Some(Instruction {
@@ -1768,7 +1768,7 @@ const COLOR_DEPTH: i32 = 16;
         //call: used by Decode to call Fetch. 
         //Returns: InstructionType/integer triple, (stall/not stall, instruction bits, instruction pc). 
         //InstructionType is to indicate if it is blocked/stalling. Any other return value just means there is an instruction being returned.
-        pub fn call(&mut self, decode_status: InstructionType, reg: &mut Registers, cache: &mut Cache, ctrl: &mut Controler) -> (InstructionType, i32, i32) { //add PC value to return element
+        pub fn call(&mut self, decode_status: InstructionType, reg: &mut Registers, cache: &mut Cache, ctrl: &mut Controller) -> (InstructionType, i32, i32) { //add PC value to return element
             
             if decode_status == InstructionType::Squashed {
                 self.load_instruction = None;
