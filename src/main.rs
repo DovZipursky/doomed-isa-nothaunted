@@ -7,10 +7,10 @@ use std::{collections::btree_map::Range, io, ptr::null};
 
 
 
-use doomed_isa::opcode::opcode::RS_RR;
+use doomed_isa::{memory::memory::GRAPHICS_OFFSET, opcode::opcode::RS_RR};
 
-use eframe::App;
-use egui::{Grid, ScrollArea, util::id_type_map};
+use eframe::{App, wgpu::Color};
+use egui::{Color32, ColorImage, Grid, ScrollArea, util::id_type_map};
 use egui_extras::{Column, TableBuilder};
 
 use crate::{instruction::instruction::{Devices, Instruction, InstructionType}, 
@@ -1503,11 +1503,11 @@ impl eframe::App for Simulator {
 
                 columns[2].vertical(|ui| {
                     let available_height = ui.available_height();
-                    let half_height = available_height / 2.0;
+                    let third_height = available_height / 3.0;
 
                     ui.label("Cache");
                     ui.allocate_ui_with_layout(
-        egui::vec2(ui.available_width(), half_height),
+        egui::vec2(ui.available_width(), third_height),
                     egui::Layout::top_down(egui::Align::Min),
         |ui| {
                     ScrollArea::vertical().id_salt("third area").show(ui, |ui| {
@@ -1541,7 +1541,7 @@ impl eframe::App for Simulator {
                     ui.label("Pipeline");
 
                     ui.allocate_ui_with_layout(
-        egui::vec2(ui.available_width(), half_height),
+        egui::vec2(ui.available_width(), third_height),
                     egui::Layout::top_down(egui::Align::Min),
         |ui| {
                     ScrollArea::vertical().id_salt("fourth area").show(ui, |ui| {
@@ -1577,9 +1577,21 @@ impl eframe::App for Simulator {
                     });
                     },
                 );
-                });
 
-                // Add pipeline state display
+                ui.separator();
+
+                // Framebuffer display
+                ui.allocate_ui_with_layout(egui::vec2(ui.available_width(), third_height),
+                    egui::Layout::top_down(egui::Align::Min),
+        |ui| {
+                    let frame = self.cache.main_memory[(self.cache.main_memory.len() - GRAPHICS_OFFSET as usize)..].to_vec();
+                    let mut pixels: Vec<Color32> = Vec::new();
+                    for pixel in frame {
+                        //pixels.push(Color32::from_rgb(pixel.to_le_bytes()[0], pixel[1].to_le_bytes()[1], pixel.to_le_bytes[2]));
+                    }
+                    let mut img = ColorImage::new([320, 240], pixels);
+                });
+                });
             });
         });
     }
