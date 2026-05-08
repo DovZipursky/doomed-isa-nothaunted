@@ -51,6 +51,7 @@ pub mod memory {
         }
 
         pub fn update_pending(&mut self, reg_number: usize, value: bool) {
+            println!("Register {} has been updated!", reg_number);
             self.pending[reg_number] = value;
         }
 

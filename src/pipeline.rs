@@ -162,6 +162,9 @@ const COLOR_DEPTH: i32 = 16;
                     || instr.opcode == JG_D as i32 || instr.opcode == JG_I as i32 || instr.opcode == JG_PC as i32 { //conditionals and RET
                           
                         if instr.result.unwrap() != instr.pc { //if jump acutally jumped 
+                            for i in 0..35 {
+                                reg.update_pending(i as usize, false); //un-pend all registers
+                            }
                             reg.update_gp(32, instr.result.unwrap());
                             wb_status = InstructionType::Squashed;
                         }
@@ -178,6 +181,8 @@ const COLOR_DEPTH: i32 = 16;
 
             }
             println!("Writeback status: {}", wb_status.to_string());
+           
+            
             let next_instr = self.mem_stage.call(reg, cache, wb_status, ctrl);
 
             let ret_instr = self.instruction;
